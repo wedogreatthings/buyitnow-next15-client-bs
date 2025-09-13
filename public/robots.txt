@@ -1,0 +1,27 @@
+# *
+User-agent: *
+Allow: /
+Disallow: /address
+Disallow: /api
+Disallow: /cart
+Disallow: /me
+Disallow: /shipping
+Disallow: /shipping-choice
+Disallow: /payment
+Disallow: /confirmation
+Disallow: /error
+Disallow: /404
+Disallow: /500
+Disallow: /search
+Disallow: /*?*
+
+# GPTBot
+User-agent: GPTBot
+Disallow: /
+
+# Host
+Host: https://buyitnow-client-n15-prv1.vercel.app
+
+# Sitemaps
+Sitemap: https://buyitnow-client-n15-prv1.vercel.app/sitemap.xml
+Sitemap: https://buyitnow-client-n15-prv1.vercel.app/server-sitemap.xml

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vous êtes hors ligne - Buy It Now</title>
+    <style>
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        background-color: #f9fafb;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        color: #1f2937;
+      }
+
+      .container {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+        max-width: 640px;
+        margin: 0 auto;
+      }
+
+      .logo {
+        margin-bottom: 2rem;
+        width: 120px;
+        height: auto;
+      }
+
+      h1 {
+        font-size: 1.875rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+      }
+
+      p {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #4b5563;
+        margin-bottom: 1.5rem;
+      }
+
+      .button {
+        display: inline-block;
+        background-color: #2563eb;
+        color: white;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        margin-top: 1rem;
+        transition: background-color 0.2s;
+      }
+
+      .button:hover {
+        background-color: #1d4ed8;
+      }
+
+      .icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        color: #9ca3af;
+      }
+
+      footer {
+        background-color: #1f2937;
+        color: #f9fafb;
+        text-align: center;
+        padding: 1rem;
+        font-size: 0.875rem;
+      }
+
+      @media (max-width: 640px) {
+        h1 {
+          font-size: 1.5rem;
+        }
+
+        .container {
+          padding: 1.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">📶</div>
+      <h1>Vous êtes actuellement hors ligne</h1>
+      <p>
+        Il semble que vous n'êtes pas connecté à Internet. Vérifiez votre
+        connexion et réessayez. Certaines fonctionnalités peuvent ne pas être
+        disponibles en mode hors ligne.
+      </p>
+      <p>
+        Dès que vous serez de nouveau connecté, vous pourrez accéder à
+        l'ensemble de notre boutique en ligne.
+      </p>
+      <a href="/" class="button">Réessayer</a>
+    </div>
+    <footer>
+      ©
+      <script>
+        document.write(new Date().getFullYear());
+      </script>
+      Buy It Now. Tous droits réservés.
+    </footer>
+  </body>
+</html>

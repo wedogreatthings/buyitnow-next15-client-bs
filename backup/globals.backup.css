@@ -1,0 +1,302 @@
+@import 'tailwindcss';
+
+/* ============================================
+   CONFIGURATION DU THÈME (@theme)
+   ============================================ */
+@theme {
+  /* 🎨 COULEURS PERSONNALISÉES */
+
+  /* Grays - Utilisés partout dans vos composants */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-400: #9ca3af;
+  --color-gray-500: #6b7280;
+  --color-gray-600: #4b5563;
+  --color-gray-700: #374151;
+  --color-gray-800: #1f2937;
+  --color-gray-900: #111827;
+
+  /* Blues - Pour vos boutons et liens */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-800: #1e40af;
+
+  /* Reds - Pour erreurs et suppressions */
+  --color-red-50: #fef2f2;
+  --color-red-100: #fee2e2;
+  --color-red-200: #fecaca;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
+  --color-red-600: #dc2626;
+  --color-red-700: #b91c1c;
+  --color-red-800: #991b1b;
+
+  /* Greens - Pour succès et disponibilité */
+  --color-green-50: #f0fdf4;
+  --color-green-100: #dcfce7;
+  --color-green-500: #22c55e;
+  --color-green-600: #16a34a;
+  --color-green-700: #15803d;
+  --color-green-800: #166534;
+
+  /* Yellows - Pour avertissements et icônes */
+  --color-yellow-50: #fefce8;
+  --color-yellow-100: #fef3c7;
+  --color-yellow-500: #eab308;
+  --color-yellow-700: #a16207;
+
+  /* Amber - Pour badges de popularité */
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-700: #b45309;
+
+  /* Orange - Pour compteurs */
+  --color-orange-500: #f97316;
+
+  /* Slate - Pour titres */
+  --color-slate-800: #1e293b;
+
+  /* White & Black */
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Vos couleurs originales renommées pour cohérence Tailwind */
+  --color-primary-light: #4da8ff;
+  --color-primary: #0070f3;
+  --color-primary-dark: #005bcc;
+
+  --color-secondary-light: #f6f9fc;
+  --color-secondary: #e9ecef;
+  --color-secondary-dark: #dee2e6;
+
+  --color-success-light: #9be6b4;
+  --color-success: #38c172;
+  --color-success-dark: #187741;
+
+  --color-danger-light: #f8a4a9;
+  --color-danger: #e3342f;
+  --color-danger-dark: #c11c17;
+
+  /* 📱 BREAKPOINTS PERSONNALISÉS (en rem pour cohérence) */
+  /* Réinitialisation des breakpoints par défaut */
+  --breakpoint-*: initial;
+
+  /* Petits écrans (320px - 700px) */
+  --breakpoint-small-xs: 22.5rem; /* 360px */
+  --breakpoint-small-sm: 23.4375rem; /* 375px */
+  --breakpoint-small-lg: 24.5625rem; /* 393px */
+  --breakpoint-small-xl: 26.875rem; /* 430px */
+
+  /* Moyens écrans (701px - 1199px) */
+  --breakpoint-medium-sm: 48rem; /* 768px */
+  --breakpoint-medium-lg: 52.125rem; /* 834px */
+  --breakpoint-medium-xl: 56.25rem; /* 900px */
+  --breakpoint-medium-xxl: 64rem; /* 1024px */
+
+  /* Grands écrans (1200px+) */
+  --breakpoint-large-xs: 75rem; /* 1200px */
+  --breakpoint-large-sm: 80rem; /* 1280px */
+  --breakpoint-large-md: 85.375rem; /* 1366px */
+  --breakpoint-large-lg: 90rem; /* 1440px */
+  --breakpoint-large-xxl: 120rem; /* 1920px */
+  --breakpoint-large-xxxl: 160rem; /* 2560px */
+
+  /* 📏 ESPACEMENTS PERSONNALISÉS */
+  --spacing-72: 18rem;
+  --spacing-84: 21rem;
+  --spacing-96: 24rem;
+
+  /* 🔤 POLICES */
+  --font-family-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-family-mono:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+
+  /* 📐 TAILLES DE TEXTE PERSONNALISÉES */
+  --font-size-xs: 0.75rem;
+  --font-size-xs--line-height: 1rem;
+  --font-size-sm: 0.875rem;
+  --font-size-sm--line-height: 1.25rem;
+  --font-size-base: 1rem;
+  --font-size-base--line-height: 1.5rem;
+  --font-size-lg: 1.125rem;
+  --font-size-lg--line-height: 1.75rem;
+  --font-size-xl: 1.25rem;
+  --font-size-xl--line-height: 1.75rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-2xl--line-height: 2rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-3xl--line-height: 2.25rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-4xl--line-height: 2.5rem;
+  --font-size-5xl: 3rem;
+  --font-size-5xl--line-height: 1;
+
+  /* 🎭 OMBRES */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* 🔄 TRANSITIONS */
+  --transition-timing-in-expo: cubic-bezier(0.95, 0.05, 0.795, 0.035);
+  --transition-timing-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  --transition-duration-150: 150ms;
+  --transition-duration-200: 200ms;
+  --transition-duration-300: 300ms;
+  --transition-duration-500: 500ms;
+
+  /* 📦 Z-INDEX */
+  --z-0: 0;
+  --z-10: 10;
+  --z-20: 20;
+  --z-30: 30;
+  --z-40: 40;
+  --z-50: 50;
+  --z-100: 100;
+}
+
+/* ============================================
+   UTILITAIRES PERSONNALISÉS
+   ============================================ */
+@utility container-responsive {
+  width: 100%;
+  padding-inline: clamp(1rem, 5vw, 2rem);
+  margin-inline: auto;
+
+  @media (max-width: 700px) {
+    max-width: 100%;
+    padding-inline: 1rem;
+  }
+
+  @media (min-width: 701px) and (max-width: 1199px) {
+    max-width: 90%;
+  }
+
+  @media (min-width: 75rem) {
+    /* large-xs */
+    max-width: 1140px;
+  }
+
+  @media (min-width: 90rem) {
+    /* large-lg */
+    max-width: 1320px;
+  }
+
+  @media (min-width: 120rem) {
+    /* large-xxl */
+    max-width: 1540px;
+  }
+}
+
+@utility optimize-small {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@utility optimize-medium {
+  scroll-behavior: smooth;
+}
+
+@utility optimize-large {
+  cursor: pointer;
+  user-select: none;
+}
+
+@utility hide-small {
+  @media (max-width: 700px) {
+    display: none !important;
+  }
+}
+
+@utility show-small-only {
+  @media (min-width: 701px) {
+    display: none !important;
+  }
+}
+
+@utility hide-medium {
+  @media (min-width: 701px) and (max-width: 1199px) {
+    display: none !important;
+  }
+}
+
+@utility hide-large {
+  @media (min-width: 1200px) {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   VARIANTES PERSONNALISÉES
+   ============================================ */
+@custom-variant portrait (@media (orientation: portrait));
+@custom-variant landscape (@media (orientation: landscape));
+@custom-variant mobile-landscape (@media (max-width: 700px) and (orientation: landscape));
+@custom-variant tall-screen (@media (min-height: 850px));
+@custom-variant short-screen (@media (max-height: 700px));
+@custom-variant high-density (@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi));
+@custom-variant ultra-density (@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 288dpi));
+@custom-variant reduced-motion (@media (prefers-reduced-motion: reduce));
+@custom-variant high-contrast (@media (prefers-contrast: high));
+@custom-variant reduced-data (@media (prefers-reduced-data: reduce));
+
+/* Helpers pour catégories de breakpoints */
+@custom-variant small-only (@media (max-width: 700px));
+@custom-variant medium-only (@media (min-width: 701px) and (max-width: 1199px));
+@custom-variant large-only (@media (min-width: 1200px));
+@custom-variant mobile-and-tablets (@media (max-width: 1199px));
+@custom-variant tablets-and-computers (@media (min-width: 701px));
+
+/* ============================================
+   STYLES DE COMPATIBILITÉ V3 → V4
+   ============================================ */
+@layer base {
+  /* Compatibilité pour la couleur de bordure par défaut */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+}
+
+/* ============================================
+   STYLES PERSONNALISÉS GLOBAUX
+   ============================================ */
+/* Accessibilité - Réduction de mouvement */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Utilitaire pour cacher les scrollbars sur mobile */
+@media (max-width: 640px) {
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
