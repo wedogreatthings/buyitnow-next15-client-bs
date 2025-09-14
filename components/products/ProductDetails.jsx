@@ -22,7 +22,14 @@ import { INCREASE } from '@/helpers/constants';
 // Pour la sécurité - nécessite d'installer cette dépendance
 // npm install dompurify
 import DOMPurify from 'dompurify';
-import { Share2, ShoppingCart, Star, Truck } from 'lucide-react';
+import {
+  Share2,
+  ShoppingCart,
+  Star,
+  Truck,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -334,67 +341,273 @@ const ProductInfo = memo(function ProductInfo({
   );
 });
 
-const RelatedProducts = memo(function RelatedProducts({
+const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
   products,
   currentProductId,
 }) {
-  // Filtrer les produits pour exclure le produit actuel et limiter à 4 max
+  // États pour la gestion du carrousel
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(true);
+  const [visibleProducts, setVisibleProducts] = useState(4);
+
+  // Filtrer les produits pour exclure le produit actuel
   const filteredProducts = useMemo(
     () =>
-      products
-        ?.filter((product) => product?._id !== currentProductId)
-        .slice(0, 4),
+      products?.filter((product) => product?._id !== currentProductId) || [],
     [products, currentProductId],
   );
 
-  // Si isArrayEmpty retourne true, cela signifie que le tableau est vide ou invalide
-  // Donc nous voulons vérifier SI isArrayEmpty est true, ALORS return null
+  // Si aucun produit similaire, ne pas afficher la section
   if (isArrayEmpty(filteredProducts)) {
     return null;
   }
 
+  // Gestion responsive du nombre de produits visibles
+  useEffect(() => {
+    const updateVisibleProducts = () => {
+      const width = window.innerWidth;
+      if (width < 640) {
+        setVisibleProducts(1); // Mobile: 1 produit
+      } else if (width < 768) {
+        setVisibleProducts(2); // Small tablet: 2 produits
+      } else if (width < 1024) {
+        setVisibleProducts(3); // Tablet: 3 produits
+      } else {
+        setVisibleProducts(4); // Desktop: 4 produits
+      }
+    };
+
+    updateVisibleProducts();
+    window.addEventListener('resize', updateVisibleProducts);
+    return () => window.removeEventListener('resize', updateVisibleProducts);
+  }, []);
+
+  // Navigation du carrousel
+  const navigateCarousel = useCallback(
+    (direction) => {
+      setCurrentIndex((prevIndex) => {
+        const maxIndex = Math.max(0, filteredProducts.length - visibleProducts);
+        let newIndex = prevIndex + direction;
+
+        // Gestion cyclique
+        if (newIndex > maxIndex) {
+          newIndex = 0;
+        } else if (newIndex < 0) {
+          newIndex = maxIndex;
+        }
+
+        return newIndex;
+      });
+    },
+    [filteredProducts.length, visibleProducts],
+  );
+
+  // Auto-scroll (optionnel - activé par défaut)
+  useEffect(() => {
+    if (!isAutoScrolling || filteredProducts.length <= visibleProducts) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      navigateCarousel(1);
+    }, 4000); // 4 secondes entre chaque défilement
+
+    return () => clearInterval(interval);
+  }, [
+    isAutoScrolling,
+    navigateCarousel,
+    filteredProducts.length,
+    visibleProducts,
+  ]);
+
+  // Calculer le décalage pour l'animation
+  const translateX = useMemo(() => {
+    const cardWidth = 100 / visibleProducts; // Pourcentage par carte
+    return -(currentIndex * cardWidth);
+  }, [currentIndex, visibleProducts]);
+
+  // Gestion des boutons précédent/suivant
+  const handlePrevious = useCallback(() => {
+    setIsAutoScrolling(false); // Désactiver l'auto-scroll quand l'utilisateur navigue
+    navigateCarousel(-1);
+  }, [navigateCarousel]);
+
+  const handleNext = useCallback(() => {
+    setIsAutoScrolling(false);
+    navigateCarousel(1);
+  }, [navigateCarousel]);
+
+  // Reprendre l'auto-scroll après 10 secondes d'inactivité
+  useEffect(() => {
+    if (!isAutoScrolling) {
+      const timeout = setTimeout(() => {
+        setIsAutoScrolling(true);
+      }, 10000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isAutoScrolling]);
+
   return (
     <section aria-labelledby="related-heading" className="mt-12">
-      <h2
-        id="related-heading"
-        className="font-bold text-xl sm:text-2xl mb-5 text-gray-800"
-      >
-        Produits similaires
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2
+          id="related-heading"
+          className="font-bold text-xl sm:text-2xl text-gray-800"
+        >
+          Produits similaires
+        </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {filteredProducts.map((product) => (
-          <Link
-            key={product?._id}
-            href={`/product/${product?._id}`}
-            className="group bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-100 transform hover:-translate-y-1"
-          >
-            <div className="aspect-w-1 aspect-h-1 mb-4 bg-gray-100 rounded-lg overflow-hidden">
-              <Image
-                src={product?.images?.[0]?.url || '/images/default_product.png'}
-                alt={product?.name || 'Produit similaire'}
-                width={200}
-                height={200}
-                className="object-contain w-full h-full group-hover:scale-105 transition-transform duration-300"
-                loading="lazy" // Chargement différé
-                placeholder="blur"
-                blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEtAJJXIDTiQAAAABJRU5ErkJggg=="
-                onError={(e) => {
-                  e.target.src = '/images/default_product.png';
-                }}
-              />
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-800 mb-1 group-hover:text-blue-600 transition-colors line-clamp-2">
-                {product?.name || 'Produit sans nom'}
-              </h3>
-              <p className="font-bold text-blue-600">
-                {formatPrice(product?.price)}
-              </p>
-            </div>
-          </Link>
-        ))}
+        {/* Indicateur du nombre de produits */}
+        <span className="text-sm text-gray-500">
+          {filteredProducts.length} produit
+          {filteredProducts.length > 1 ? 's' : ''}
+        </span>
       </div>
+
+      {/* Container du carrousel */}
+      <div className="relative group">
+        {/* Bouton Précédent */}
+        {filteredProducts.length > visibleProducts && (
+          <button
+            onClick={handlePrevious}
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            aria-label="Produit précédent"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Bouton Suivant */}
+        {filteredProducts.length > visibleProducts && (
+          <button
+            onClick={handleNext}
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
+            aria-label="Produit suivant"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        )}
+
+        {/* Container avec overflow hidden */}
+        <div className="overflow-hidden rounded-lg">
+          <div
+            className="flex transition-transform duration-500 ease-in-out"
+            style={{
+              transform: `translateX(${translateX}%)`,
+              width: `${(filteredProducts.length * 100) / visibleProducts}%`,
+            }}
+          >
+            {filteredProducts.map((product, index) => (
+              <div
+                key={product?._id}
+                className="flex-shrink-0 px-3"
+                style={{ width: `${100 / filteredProducts.length}%` }}
+              >
+                <Link
+                  href={`/product/${product?._id}`}
+                  className="group/card block bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-100 transform hover:-translate-y-1"
+                >
+                  {/* Image du produit */}
+                  <div className="aspect-w-1 aspect-h-1 mb-4 bg-gray-100 rounded-lg overflow-hidden relative">
+                    <Image
+                      src={
+                        product?.images?.[0]?.url ||
+                        '/images/default_product.png'
+                      }
+                      alt={product?.name || 'Produit similaire'}
+                      width={280}
+                      height={280}
+                      className="object-contain w-full h-full group-hover/card:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                      placeholder="blur"
+                      blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEtAJJXIDTiQAAAABJRU5ErkJggg=="
+                      onError={(e) => {
+                        e.target.src = '/images/default_product.png';
+                      }}
+                    />
+
+                    {/* Badge si le produit est nouveau */}
+                    {product?.createdAt &&
+                      new Date(product.createdAt) >
+                        new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) && (
+                        <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                          Nouveau
+                        </div>
+                      )}
+
+                    {/* Badge si rupture de stock */}
+                    {product?.stock === 0 && (
+                      <div className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                        Épuisé
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informations du produit */}
+                  <div className="space-y-2">
+                    <h3 className="font-medium text-gray-800 group-hover/card:text-blue-600 transition-colors line-clamp-2 text-sm leading-tight">
+                      {product?.name || 'Produit sans nom'}
+                    </h3>
+
+                    <div className="flex items-center justify-between">
+                      <p className="font-bold text-blue-600 text-lg">
+                        {formatPrice(product?.price)}
+                      </p>
+
+                      {/* Indicateur de stock */}
+                      {product?.stock > 0 && (
+                        <span className="text-xs text-green-600 font-medium">
+                          En stock
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Catégorie */}
+                    {product?.category?.categoryName && (
+                      <p className="text-xs text-gray-500">
+                        {product.category.categoryName}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Indicateurs de pagination (dots) - Optionnel */}
+        {filteredProducts.length > visibleProducts && (
+          <div className="flex justify-center mt-4 space-x-2">
+            {Array.from({
+              length: Math.ceil(
+                Math.max(0, filteredProducts.length - visibleProducts) + 1,
+              ),
+            }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => {
+                  setCurrentIndex(index);
+                  setIsAutoScrolling(false);
+                }}
+                className={`w-2 h-2 rounded-full transition-colors duration-200 ${
+                  index === currentIndex
+                    ? 'bg-blue-600'
+                    : 'bg-gray-300 hover:bg-gray-400'
+                }`}
+                aria-label={`Aller à la page ${index + 1}`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Message si moins de produits que la capacité d'affichage */}
+      {filteredProducts.length <= visibleProducts &&
+        filteredProducts.length > 0 && (
+          <p className="text-center text-sm text-gray-500 mt-4">
+            Tous les produits similaires sont affichés
+          </p>
+        )}
     </section>
   );
 });
@@ -620,7 +833,7 @@ function ProductDetails({ product, sameCategoryProducts }) {
         </div>
 
         {/* Produits connexes */}
-        <RelatedProducts
+        <RelatedProductsCarousel
           products={sameCategoryProducts}
           currentProductId={product._id}
         />
