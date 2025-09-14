@@ -44,7 +44,9 @@ const getAllAddresses = async (page = 'shipping') => {
     }
 
     // 4. Construire l'URL de l'API avec le contexte
-    const apiUrl = `${process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app'}/api/address?context=${page}`;
+    const apiUrl = `${
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app'
+    }/api/address?context=${page}`;
 
     console.log('Fetching addresses from:', apiUrl); // Log pour debug
 

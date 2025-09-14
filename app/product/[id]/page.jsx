@@ -33,7 +33,9 @@ const getProductDetails = async (id) => {
     }
 
     // 2. Construire l'URL de l'API
-    const apiUrl = `${process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app'}/api/products/${id}`;
+    const apiUrl = `${
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app'
+    }/api/products/${id}`;
 
     console.log('Fetching product details from:', apiUrl); // Log pour debug
 
