@@ -23,7 +23,9 @@ const ListOrders = dynamic(() => import('@/components/orders/ListOrders'), {
  */
 const getAllOrders = async (searchParams) => {
   // Identifiant unique pour la traçabilité
-  const requestId = `orderspage-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  const requestId = `orderspage-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .substring(2, 7)}`;
 
   // AJOUTER : Première vérification d'authentification avec getAuthenticatedUser
   const headersList = await headers();
@@ -87,9 +89,9 @@ const getAllOrders = async (searchParams) => {
 
     // 4. Construire l'URL de l'API
     const searchQuery = new URLSearchParams(urlParams).toString();
-    const apiUrl = `${process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app'}/api/orders/me${
-      searchQuery ? `?${searchQuery}` : ''
-    }`;
+    const apiUrl = `${
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app'
+    }/api/orders/me${searchQuery ? `?${searchQuery}` : ''}`;
 
     console.log('Fetching orders from:', apiUrl); // Log pour debug
 
@@ -273,7 +275,9 @@ export const metadata = {
  */
 const MyOrdersPage = async ({ searchParams }) => {
   // Identifiant unique pour la traçabilité
-  const requestId = `orderspage-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
+  const requestId = `orderspage-${Date.now().toString(36)}-${Math.random()
+    .toString(36)
+    .substring(2, 7)}`;
 
   logger.info('Orders page accessed', {
     requestId,
