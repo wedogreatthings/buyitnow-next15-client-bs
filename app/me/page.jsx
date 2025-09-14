@@ -54,7 +54,7 @@ const getAllAddresses = async (page = 'shipping') => {
 
     // MODIFICATION: Utiliser une variable d'environnement validée
     const apiUrl =
-      process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app';
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app';
     if (!apiUrl) {
       throw new Error('API_URL not configured');
     }

@@ -46,7 +46,9 @@ const getSingleAddress = async (id) => {
     }
 
     // 4. Construire l'URL de l'API
-    const apiUrl = `${process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app'}/api/address/${id}`;
+    const apiUrl = `${
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app'
+    }/api/address/${id}`;
 
     console.log('Fetching address from:', apiUrl); // Log pour debug
 
