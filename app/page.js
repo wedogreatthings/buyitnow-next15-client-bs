@@ -50,7 +50,7 @@ const getAllProducts = async (searchParams) => {
 
     // 4. Construire l'URL complète de l'API
     const apiUrl = `${
-      process.env.API_URL || 'https://buyitnow-client-n15-prv1.vercel.app'
+      process.env.API_URL || 'https://buyitnow-next15-client-bs.vercel.app'
     }/api/products${searchQuery ? `?${searchQuery}` : ''}`;
 
     console.log('Fetching products from:', apiUrl);
