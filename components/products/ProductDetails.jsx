@@ -22,14 +22,7 @@ import { INCREASE } from '@/helpers/constants';
 // Pour la sécurité - nécessite d'installer cette dépendance
 // npm install dompurify
 import DOMPurify from 'dompurify';
-import {
-  Share2,
-  ShoppingCart,
-  Star,
-  Truck,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react';
+import { Share2, ShoppingCart, Star, Truck } from 'lucide-react';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -387,25 +380,6 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     return Math.max(0, filteredProducts.length - slidesPerView);
   }, [filteredProducts.length, slidesPerView]);
 
-  // Navigation du carrousel - se déplace d'un produit à la fois
-  const navigateCarousel = useCallback(
-    (direction) => {
-      setCurrentSlide((prevSlide) => {
-        let newSlide = prevSlide + direction;
-
-        // Gestion des limites (pas de défilement cyclique pour plus de clarté)
-        if (newSlide > maxSlideIndex) {
-          newSlide = maxSlideIndex;
-        } else if (newSlide < 0) {
-          newSlide = 0;
-        }
-
-        return newSlide;
-      });
-    },
-    [maxSlideIndex],
-  );
-
   // Auto-scroll (optionnel - activé par défaut)
   useEffect(() => {
     if (!isAutoScrolling || filteredProducts.length <= slidesPerView) {
@@ -432,17 +406,6 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     const slideWidth = 100 / slidesPerView;
     return -(currentSlide * slideWidth);
   }, [currentSlide, slidesPerView]);
-
-  // Gestion des boutons précédent/suivant
-  const handlePrevious = useCallback(() => {
-    setIsAutoScrolling(false); // Désactiver l'auto-scroll quand l'utilisateur navigue
-    navigateCarousel(-1);
-  }, [navigateCarousel]);
-
-  const handleNext = useCallback(() => {
-    setIsAutoScrolling(false);
-    navigateCarousel(1);
-  }, [navigateCarousel]);
 
   // Reprendre l'auto-scroll après 10 secondes d'inactivité
   useEffect(() => {
@@ -481,37 +444,6 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
 
       {/* Container du carrousel */}
       <div className="relative group">
-        {/* Bouton Précédent - Seulement si navigation nécessaire */}
-        {filteredProducts.length > slidesPerView && currentSlide > 0 && (
-          <button
-            onClick={handlePrevious}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-blue-600 hover:text-white rounded-full p-2.5 shadow-lg border-2 border-blue-200 hover:border-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="Produits précédents"
-          >
-            <ChevronLeft
-              color="#2563eb"
-              strokeWidth={1.25}
-              className="w-6 h-6"
-            />
-          </button>
-        )}
-
-        {/* Bouton Suivant - Seulement si navigation nécessaire */}
-        {filteredProducts.length > slidesPerView &&
-          currentSlide < maxSlideIndex && (
-            <button
-              onClick={handleNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-blue-600 hover:text-white rounded-full p-2.5 shadow-lg border-2 border-blue-200 hover:border-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
-              aria-label="Produits suivants"
-            >
-              <ChevronRight
-                color="#2563eb"
-                strokeWidth={1.25}
-                className="w-6 h-6"
-              />
-            </button>
-          )}
-
         {/* Container avec overflow hidden */}
         <div className="overflow-hidden rounded-lg">
           <div
