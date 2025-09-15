@@ -62,7 +62,7 @@ export async function POST(req) {
 
     // Options de l'email pour Resend
     const emailOptions = {
-      from: 'BuyItNow <https://buyitnow-next15-client-bs.vercel.app>', // Remplacez par votre domaine vérifié
+      from: 'onboarding@resend.dev', // Remplacez par votre domaine vérifié
       reply_to: user.email,
       to: ['fathismael@gmail.com'], // Email de destination
       subject: `[Contact] ${subject}`,
