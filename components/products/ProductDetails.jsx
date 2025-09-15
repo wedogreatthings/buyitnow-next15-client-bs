@@ -346,9 +346,9 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
   currentProductId,
 }) {
   // États pour la gestion du carrousel
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-  const [visibleProducts, setVisibleProducts] = useState(4);
+  const [slidesPerView, setSlidesPerView] = useState(4);
 
   // Filtrer les produits pour exclure le produit actuel
   const filteredProducts = useMemo(
@@ -362,53 +362,53 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     return null;
   }
 
-  // Gestion responsive du nombre de produits visibles
+  // Gestion responsive du nombre de slides visibles par vue
   useEffect(() => {
-    const updateVisibleProducts = () => {
+    const updateSlidesPerView = () => {
       const width = window.innerWidth;
       if (width < 640) {
-        setVisibleProducts(1); // Mobile: 1 produit visible
+        setSlidesPerView(1); // Mobile: 1 slide visible
       } else if (width < 768) {
-        setVisibleProducts(2); // Small tablet: 2 produits visibles
+        setSlidesPerView(2); // Small tablet: 2 slides visibles
       } else if (width < 1024) {
-        setVisibleProducts(3); // Tablet: 3 produits visibles
+        setSlidesPerView(3); // Tablet: 3 slides visibles
       } else {
-        setVisibleProducts(4); // Desktop: 4 produits visibles
+        setSlidesPerView(4); // Desktop: 4 slides visibles
       }
     };
 
-    updateVisibleProducts();
-    window.addEventListener('resize', updateVisibleProducts);
-    return () => window.removeEventListener('resize', updateVisibleProducts);
+    updateSlidesPerView();
+    window.addEventListener('resize', updateSlidesPerView);
+    return () => window.removeEventListener('resize', updateSlidesPerView);
   }, []);
 
   // Calculer l'index maximum pour la navigation
-  const maxIndex = useMemo(() => {
-    return Math.max(0, filteredProducts.length - visibleProducts);
-  }, [filteredProducts.length, visibleProducts]);
+  const maxSlideIndex = useMemo(() => {
+    return Math.max(0, filteredProducts.length - slidesPerView);
+  }, [filteredProducts.length, slidesPerView]);
 
-  // Navigation du carrousel
+  // Navigation du carrousel par slides
   const navigateCarousel = useCallback(
     (direction) => {
-      setCurrentIndex((prevIndex) => {
-        let newIndex = prevIndex + direction;
+      setCurrentSlide((prevSlide) => {
+        let newSlide = prevSlide + direction;
 
         // Gestion cyclique
-        if (newIndex > maxIndex) {
-          newIndex = 0;
-        } else if (newIndex < 0) {
-          newIndex = maxIndex;
+        if (newSlide > maxSlideIndex) {
+          newSlide = 0;
+        } else if (newSlide < 0) {
+          newSlide = maxSlideIndex;
         }
 
-        return newIndex;
+        return newSlide;
       });
     },
-    [maxIndex],
+    [maxSlideIndex],
   );
 
   // Auto-scroll (optionnel - activé par défaut)
   useEffect(() => {
-    if (!isAutoScrolling || filteredProducts.length <= visibleProducts) {
+    if (!isAutoScrolling || filteredProducts.length <= slidesPerView) {
       return;
     }
 
@@ -421,15 +421,15 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     isAutoScrolling,
     navigateCarousel,
     filteredProducts.length,
-    visibleProducts,
+    slidesPerView,
   ]);
 
-  // Calculer le décalage pour l'animation (par produit individuel)
+  // Calculer le décalage pour l'animation (basé sur les slides)
   const translateX = useMemo(() => {
-    // Chaque produit fait 100% / visibleProducts de largeur
-    const productWidth = 100 / visibleProducts;
-    return -(currentIndex * productWidth);
-  }, [currentIndex, visibleProducts]);
+    // Chaque slide occupe (100 / slidesPerView)% de l'espace visible
+    const slideWidth = 100 / slidesPerView;
+    return -(currentSlide * slideWidth);
+  }, [currentSlide, slidesPerView]);
 
   // Gestion des boutons précédent/suivant
   const handlePrevious = useCallback(() => {
@@ -454,8 +454,8 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
 
   // Calculer le nombre total de "pages" pour les indicateurs
   const totalPages = useMemo(() => {
-    return maxIndex + 1;
-  }, [maxIndex]);
+    return maxSlideIndex + 1;
+  }, [maxSlideIndex]);
 
   return (
     <section aria-labelledby="related-heading" className="mt-12">
@@ -477,7 +477,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
       {/* Container du carrousel */}
       <div className="relative group">
         {/* Bouton Précédent - Seulement si plus de produits que visible */}
-        {filteredProducts.length > visibleProducts && (
+        {filteredProducts.length > slidesPerView && (
           <button
             onClick={handlePrevious}
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -488,7 +488,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
         )}
 
         {/* Bouton Suivant - Seulement si plus de produits que visible */}
-        {filteredProducts.length > visibleProducts && (
+        {filteredProducts.length > slidesPerView && (
           <button
             onClick={handleNext}
             className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -504,17 +504,17 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
             className="flex transition-transform duration-500 ease-in-out"
             style={{
               transform: `translateX(${translateX}%)`,
-              // Chaque produit occupe (100/visibleProducts)% de la largeur visible
-              width: `${(filteredProducts.length * 100) / visibleProducts}%`,
+              // Le container fait la largeur totale nécessaire pour tous les slides
+              width: `${(filteredProducts.length * 100) / slidesPerView}%`,
             }}
           >
-            {/* CHAQUE PRODUIT EST UN ÉLÉMENT INDIVIDUEL DU CARROUSEL */}
+            {/* CHAQUE PRODUIT = UN SLIDE INDIVIDUEL */}
             {filteredProducts.map((product, index) => (
               <div
                 key={product?._id}
-                className="flex-shrink-0 px-3"
+                className="flex-shrink-0 px-3" // SLIDE INDIVIDUEL
                 style={{
-                  // Chaque produit fait (100/filteredProducts.length)% de la largeur totale du conteneur
+                  // Chaque slide fait (100/filteredProducts.length)% du container total
                   width: `${100 / filteredProducts.length}%`,
                 }}
               >
@@ -589,17 +589,17 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
         </div>
 
         {/* Indicateurs de pagination (dots) - Seulement si navigation nécessaire */}
-        {filteredProducts.length > visibleProducts && totalPages > 1 && (
+        {filteredProducts.length > slidesPerView && totalPages > 1 && (
           <div className="flex justify-center mt-4 space-x-2">
             {Array.from({ length: totalPages }).map((_, pageIndex) => (
               <button
                 key={pageIndex}
                 onClick={() => {
-                  setCurrentIndex(pageIndex);
+                  setCurrentSlide(pageIndex);
                   setIsAutoScrolling(false);
                 }}
                 className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                  pageIndex === currentIndex
+                  pageIndex === currentSlide
                     ? 'bg-blue-600'
                     : 'bg-gray-300 hover:bg-gray-400'
                 }`}
@@ -611,7 +611,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
       </div>
 
       {/* Message si tous les produits sont visibles */}
-      {filteredProducts.length <= visibleProducts &&
+      {filteredProducts.length <= slidesPerView &&
         filteredProducts.length > 0 && (
           <p className="text-center text-sm text-gray-500 mt-4">
             Tous les produits similaires sont affichés
