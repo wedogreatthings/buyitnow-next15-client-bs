@@ -27,8 +27,8 @@ import {
   ShoppingCart,
   Star,
   Truck,
-  ChevronLeft,
-  ChevronRight,
+  // ChevronLeft,
+  // ChevronRight,
 } from 'lucide-react';
 
 // Chargement dynamique des composants
@@ -434,15 +434,15 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
   }, [currentSlide, slidesPerView]);
 
   // Gestion des boutons précédent/suivant
-  const handlePrevious = useCallback(() => {
-    setIsAutoScrolling(false); // Désactiver l'auto-scroll quand l'utilisateur navigue
-    navigateCarousel(-1);
-  }, [navigateCarousel]);
+  // const handlePrevious = useCallback(() => {
+  //   setIsAutoScrolling(false); // Désactiver l'auto-scroll quand l'utilisateur navigue
+  //   navigateCarousel(-1);
+  // }, [navigateCarousel]);
 
-  const handleNext = useCallback(() => {
-    setIsAutoScrolling(false);
-    navigateCarousel(1);
-  }, [navigateCarousel]);
+  // const handleNext = useCallback(() => {
+  //   setIsAutoScrolling(false);
+  //   navigateCarousel(1);
+  // }, [navigateCarousel]);
 
   // Reprendre l'auto-scroll après 10 secondes d'inactivité
   useEffect(() => {
@@ -482,7 +482,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
       {/* Container du carrousel */}
       <div className="relative group">
         {/* Bouton Précédent - Seulement si navigation nécessaire */}
-        {filteredProducts.length > slidesPerView && currentSlide > 0 && (
+        {/* {filteredProducts.length > slidesPerView && currentSlide > 0 && (
           <button
             onClick={handlePrevious}
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-blue-600 hover:text-white rounded-full p-2.5 shadow-lg border-2 border-blue-200 hover:border-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -490,10 +490,10 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
           >
             <ChevronLeft className="w-6 h-6" color="#2563eb" />
           </button>
-        )}
+        )} */}
 
         {/* Bouton Suivant - Seulement si navigation nécessaire */}
-        {filteredProducts.length > slidesPerView &&
+        {/* {filteredProducts.length > slidesPerView &&
           currentSlide < maxSlideIndex && (
             <button
               onClick={handleNext}
@@ -502,7 +502,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
             >
               <ChevronRight className="w-6 h-6" color="#2563eb" />
             </button>
-          )}
+          )} */}
 
         {/* Container avec overflow hidden */}
         <div className="overflow-hidden rounded-lg">
