@@ -23,7 +23,6 @@ import { INCREASE } from '@/helpers/constants';
 // npm install dompurify
 import DOMPurify from 'dompurify';
 import {
-  ChevronRight,
   Share2,
   ShoppingCart,
   Star,
