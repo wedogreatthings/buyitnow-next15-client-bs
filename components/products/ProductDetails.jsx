@@ -23,6 +23,7 @@ import { INCREASE } from '@/helpers/constants';
 // npm install dompurify
 import DOMPurify from 'dompurify';
 import { Share2, ShoppingCart, Star, Truck } from 'lucide-react';
+import { useSwipeable } from 'react-swipeable';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -425,6 +426,35 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     return maxSlideIndex + 1;
   }, [filteredProducts.length, slidesPerView, maxSlideIndex]);
 
+  // Configuration du swipe avec react-swipeable
+  const handlers = useSwipeable({
+    onSwipedLeft: () => {
+      // Aller au slide suivant
+      if (currentSlide < maxSlideIndex) {
+        setCurrentSlide((prev) => prev + 1);
+        setIsAutoScrolling(false);
+      }
+    },
+    onSwipedRight: () => {
+      // Aller au slide précédent
+      if (currentSlide > 0) {
+        setCurrentSlide((prev) => prev - 1);
+        setIsAutoScrolling(false);
+      }
+    },
+    onSwiping: (eventData) => {
+      // Optionnel : retour visuel pendant le swipe
+      // Vous pouvez utiliser eventData.deltaX pour animer le carousel pendant le swipe
+      setIsAutoScrolling(false);
+    },
+    preventScrollOnSwipe: true, // Empêcher le scroll vertical pendant le swipe horizontal
+    trackMouse: true, // Permettre le swipe avec la souris (utile pour tester)
+    trackTouch: true, // Activer le swipe tactile
+    delta: 50, // Distance minimum pour déclencher un swipe (en pixels)
+    swipeDuration: 500, // Durée maximum du swipe (en ms)
+    rotationAngle: 15, // Angle de tolérance pour détecter un swipe horizontal
+  });
+
   return (
     <section aria-labelledby="related-heading" className="mt-12">
       <div className="flex items-center justify-between mb-6">
@@ -445,7 +475,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
       {/* Container du carrousel */}
       <div className="relative group">
         {/* Container avec overflow hidden */}
-        <div className="overflow-hidden rounded-lg">
+        <div {...handlers} className="overflow-hidden rounded-lg">
           <div
             className="flex transition-transform duration-500 ease-in-out"
             style={{
