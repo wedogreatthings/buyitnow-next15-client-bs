@@ -387,17 +387,17 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     return Math.max(0, filteredProducts.length - slidesPerView);
   }, [filteredProducts.length, slidesPerView]);
 
-  // Navigation du carrousel par slides
+  // Navigation du carrousel - se déplace d'un produit à la fois
   const navigateCarousel = useCallback(
     (direction) => {
       setCurrentSlide((prevSlide) => {
         let newSlide = prevSlide + direction;
 
-        // Gestion cyclique
+        // Gestion des limites (pas de défilement cyclique pour plus de clarté)
         if (newSlide > maxSlideIndex) {
-          newSlide = 0;
-        } else if (newSlide < 0) {
           newSlide = maxSlideIndex;
+        } else if (newSlide < 0) {
+          newSlide = 0;
         }
 
         return newSlide;
@@ -413,20 +413,22 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     }
 
     const interval = setInterval(() => {
-      navigateCarousel(1);
+      setCurrentSlide((prevSlide) => {
+        // Retour au début après le dernier slide
+        if (prevSlide >= maxSlideIndex) {
+          return 0;
+        }
+        return prevSlide + 1;
+      });
     }, 4000); // 4 secondes entre chaque défilement
 
     return () => clearInterval(interval);
-  }, [
-    isAutoScrolling,
-    navigateCarousel,
-    filteredProducts.length,
-    slidesPerView,
-  ]);
+  }, [isAutoScrolling, maxSlideIndex, filteredProducts.length, slidesPerView]);
 
-  // Calculer le décalage pour l'animation (basé sur les slides)
+  // Calculer le décalage pour l'animation
   const translateX = useMemo(() => {
-    // Chaque slide occupe (100 / slidesPerView)% de l'espace visible
+    // Chaque produit occupe (100 / slidesPerView)% de la largeur visible
+    // On déplace d'un produit à la fois
     const slideWidth = 100 / slidesPerView;
     return -(currentSlide * slideWidth);
   }, [currentSlide, slidesPerView]);
@@ -452,10 +454,13 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     }
   }, [isAutoScrolling]);
 
-  // Calculer le nombre total de "pages" pour les indicateurs
-  const totalPages = useMemo(() => {
+  // Calculer le nombre de "pages" pour les indicateurs (dots)
+  const totalDots = useMemo(() => {
+    // Si on a moins de produits que de slides visibles, pas besoin de pagination
+    if (filteredProducts.length <= slidesPerView) return 0;
+    // Sinon, on a autant de dots que de positions possibles
     return maxSlideIndex + 1;
-  }, [maxSlideIndex]);
+  }, [filteredProducts.length, slidesPerView, maxSlideIndex]);
 
   return (
     <section aria-labelledby="related-heading" className="mt-12">
@@ -476,8 +481,8 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
 
       {/* Container du carrousel */}
       <div className="relative group">
-        {/* Bouton Précédent - Seulement si plus de produits que visible */}
-        {filteredProducts.length > slidesPerView && (
+        {/* Bouton Précédent - Seulement si navigation nécessaire */}
+        {filteredProducts.length > slidesPerView && currentSlide > 0 && (
           <button
             onClick={handlePrevious}
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
@@ -487,16 +492,17 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
           </button>
         )}
 
-        {/* Bouton Suivant - Seulement si plus de produits que visible */}
-        {filteredProducts.length > slidesPerView && (
-          <button
-            onClick={handleNext}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="Produits suivants"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        )}
+        {/* Bouton Suivant - Seulement si navigation nécessaire */}
+        {filteredProducts.length > slidesPerView &&
+          currentSlide < maxSlideIndex && (
+            <button
+              onClick={handleNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              aria-label="Produits suivants"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          )}
 
         {/* Container avec overflow hidden */}
         <div className="overflow-hidden rounded-lg">
@@ -504,23 +510,21 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
             className="flex transition-transform duration-500 ease-in-out"
             style={{
               transform: `translateX(${translateX}%)`,
-              // Le container fait la largeur totale nécessaire pour tous les slides
-              width: `${(filteredProducts.length * 100) / slidesPerView}%`,
             }}
           >
             {/* CHAQUE PRODUIT = UN SLIDE INDIVIDUEL */}
-            {filteredProducts.map((product, index) => (
+            {filteredProducts.map((product) => (
               <div
                 key={product?._id}
-                className="flex-shrink-0 px-3" // SLIDE INDIVIDUEL
+                className="flex-shrink-0 px-2"
                 style={{
-                  // Chaque slide fait (100/filteredProducts.length)% du container total
-                  width: `${100 / filteredProducts.length}%`,
+                  // Chaque slide occupe exactement la largeur nécessaire selon slidesPerView
+                  width: `${100 / slidesPerView}%`,
                 }}
               >
                 <Link
                   href={`/product/${product?._id}`}
-                  className="group/card block bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-100 transform hover:-translate-y-1"
+                  className="group/card block bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-100 transform hover:-translate-y-1 h-full"
                 >
                   {/* Image du produit */}
                   <div className="aspect-square mb-4 bg-gray-100 rounded-lg overflow-hidden relative">
@@ -558,7 +562,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
 
                   {/* Informations du produit */}
                   <div className="space-y-2">
-                    <h3 className="font-medium text-gray-800 group-hover/card:text-blue-600 transition-colors line-clamp-2 text-sm leading-tight">
+                    <h3 className="font-medium text-gray-800 group-hover/card:text-blue-600 transition-colors line-clamp-2 text-sm leading-tight min-h-[2.5rem]">
                       {product?.name || 'Produit sans nom'}
                     </h3>
 
@@ -589,21 +593,21 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
         </div>
 
         {/* Indicateurs de pagination (dots) - Seulement si navigation nécessaire */}
-        {filteredProducts.length > slidesPerView && totalPages > 1 && (
+        {totalDots > 1 && (
           <div className="flex justify-center mt-4 space-x-2">
-            {Array.from({ length: totalPages }).map((_, pageIndex) => (
+            {Array.from({ length: totalDots }).map((_, dotIndex) => (
               <button
-                key={pageIndex}
+                key={dotIndex}
                 onClick={() => {
-                  setCurrentSlide(pageIndex);
+                  setCurrentSlide(dotIndex);
                   setIsAutoScrolling(false);
                 }}
-                className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                  pageIndex === currentSlide
-                    ? 'bg-blue-600'
+                className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                  dotIndex === currentSlide
+                    ? 'bg-blue-600 w-6'
                     : 'bg-gray-300 hover:bg-gray-400'
                 }`}
-                aria-label={`Aller à la page ${pageIndex + 1}`}
+                aria-label={`Aller à la position ${dotIndex + 1}`}
               />
             ))}
           </div>
