@@ -3,7 +3,6 @@ import { Resend } from 'resend';
 import dbConnect from '@/backend/config/dbConnect';
 import isAuthenticatedUser from '@/backend/middlewares/auth';
 import User from '@/backend/models/user';
-import Contact from '@/backend/models/contact';
 import { validateContactMessage } from '@/helpers/validation/schemas/contact';
 import { captureException } from '@/monitoring/sentry';
 
@@ -11,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * POST /api/emails
- * Envoie un email de contact et enregistre le message
+ * Envoie un email de contact
  */
 export async function POST(req) {
   try {
@@ -82,47 +81,15 @@ export async function POST(req) {
       text: `De: ${user.name} (${user.email})\nSujet: ${subject}\n\n${message}`,
     };
 
-    // Envoyer l'email et sauvegarder en parallèle
-    const [emailResult, contactResult] = await Promise.allSettled([
-      resend.emails.send(emailOptions),
-      Contact.create({
-        from: user._id,
-        subject: subject.trim(),
-        message: message.trim(),
-        status: 'sent',
-      }),
-    ]);
-
-    // Gérer les résultats
-    if (
-      emailResult.status === 'rejected' &&
-      contactResult.status === 'rejected'
-    ) {
-      throw new Error('Failed to send email and save message');
-    }
-
-    if (emailResult.status === 'rejected') {
-      // Email échoué mais message sauvegardé
-      if (contactResult.status === 'fulfilled') {
-        await Contact.findByIdAndUpdate(contactResult.value._id, {
-          status: 'error',
-        });
-      }
-
-      return NextResponse.json(
-        {
-          success: false,
-          message: 'Email could not be sent, but message was recorded',
-        },
-        { status: 500 },
-      );
-    }
+    // Envoyer l'email
+    const emailResult = await resend.emails.send(emailOptions);
 
     // Succès
     return NextResponse.json(
       {
         success: true,
         message: 'Email sent successfully',
+        data: emailResult,
       },
       {
         status: 201,
