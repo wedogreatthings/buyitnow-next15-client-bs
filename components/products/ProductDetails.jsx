@@ -348,7 +348,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
   // États pour la gestion du carrousel
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-  const [visibleProducts, setVisibleProducts] = useState(2);
+  const [visibleProducts, setVisibleProducts] = useState(4);
 
   // Filtrer les produits pour exclure le produit actuel
   const filteredProducts = useMemo(
@@ -367,13 +367,13 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     const updateVisibleProducts = () => {
       const width = window.innerWidth;
       if (width < 640) {
-        setVisibleProducts(1); // Mobile: 1 produit
+        setVisibleProducts(1); // Mobile: 1 produit visible
       } else if (width < 768) {
-        setVisibleProducts(2); // Small tablet: 2 produits
+        setVisibleProducts(2); // Small tablet: 2 produits visibles
       } else if (width < 1024) {
-        setVisibleProducts(3); // Tablet: 3 produits
+        setVisibleProducts(3); // Tablet: 3 produits visibles
       } else {
-        setVisibleProducts(4); // Desktop: 4 produits
+        setVisibleProducts(4); // Desktop: 4 produits visibles
       }
     };
 
@@ -382,11 +382,15 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     return () => window.removeEventListener('resize', updateVisibleProducts);
   }, []);
 
+  // Calculer l'index maximum pour la navigation
+  const maxIndex = useMemo(() => {
+    return Math.max(0, filteredProducts.length - visibleProducts);
+  }, [filteredProducts.length, visibleProducts]);
+
   // Navigation du carrousel
   const navigateCarousel = useCallback(
     (direction) => {
       setCurrentIndex((prevIndex) => {
-        const maxIndex = Math.max(0, filteredProducts.length - visibleProducts);
         let newIndex = prevIndex + direction;
 
         // Gestion cyclique
@@ -399,7 +403,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
         return newIndex;
       });
     },
-    [filteredProducts.length, visibleProducts],
+    [maxIndex],
   );
 
   // Auto-scroll (optionnel - activé par défaut)
@@ -420,10 +424,11 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     visibleProducts,
   ]);
 
-  // Calculer le décalage pour l'animation
+  // Calculer le décalage pour l'animation (par produit individuel)
   const translateX = useMemo(() => {
-    const cardWidth = 100 / visibleProducts; // Pourcentage par carte
-    return -(currentIndex * cardWidth);
+    // Chaque produit fait 100% / visibleProducts de largeur
+    const productWidth = 100 / visibleProducts;
+    return -(currentIndex * productWidth);
   }, [currentIndex, visibleProducts]);
 
   // Gestion des boutons précédent/suivant
@@ -447,6 +452,11 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
     }
   }, [isAutoScrolling]);
 
+  // Calculer le nombre total de "pages" pour les indicateurs
+  const totalPages = useMemo(() => {
+    return maxIndex + 1;
+  }, [maxIndex]);
+
   return (
     <section aria-labelledby="related-heading" className="mt-12">
       <div className="flex items-center justify-between mb-6">
@@ -466,23 +476,23 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
 
       {/* Container du carrousel */}
       <div className="relative group">
-        {/* Bouton Précédent */}
+        {/* Bouton Précédent - Seulement si plus de produits que visible */}
         {filteredProducts.length > visibleProducts && (
           <button
             onClick={handlePrevious}
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="Produit précédent"
+            aria-label="Produits précédents"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
         )}
 
-        {/* Bouton Suivant */}
+        {/* Bouton Suivant - Seulement si plus de produits que visible */}
         {filteredProducts.length > visibleProducts && (
           <button
             onClick={handleNext}
             className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-gray-50 text-gray-700 hover:text-blue-600 rounded-full p-2 shadow-lg border border-gray-200 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
-            aria-label="Produit suivant"
+            aria-label="Produits suivants"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -494,33 +504,36 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
             className="flex transition-transform duration-500 ease-in-out"
             style={{
               transform: `translateX(${translateX}%)`,
+              // Chaque produit occupe (100/visibleProducts)% de la largeur visible
               width: `${(filteredProducts.length * 100) / visibleProducts}%`,
             }}
           >
+            {/* CHAQUE PRODUIT EST UN ÉLÉMENT INDIVIDUEL DU CARROUSEL */}
             {filteredProducts.map((product, index) => (
               <div
                 key={product?._id}
                 className="flex-shrink-0 px-3"
-                style={{ width: `${100 / filteredProducts.length}%` }}
+                style={{
+                  // Chaque produit fait (100/filteredProducts.length)% de la largeur totale du conteneur
+                  width: `${100 / filteredProducts.length}%`,
+                }}
               >
                 <Link
                   href={`/product/${product?._id}`}
                   className="group/card block bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-300 border border-gray-200 hover:border-blue-100 transform hover:-translate-y-1"
                 >
                   {/* Image du produit */}
-                  <div className="aspect-w-1 aspect-h-1 mb-4 bg-gray-100 rounded-lg overflow-hidden relative">
+                  <div className="aspect-square mb-4 bg-gray-100 rounded-lg overflow-hidden relative">
                     <Image
                       src={
                         product?.images?.[0]?.url ||
                         '/images/default_product.png'
                       }
                       alt={product?.name || 'Produit similaire'}
-                      width={280}
-                      height={280}
-                      className="object-contain w-full h-full group-hover/card:scale-105 transition-transform duration-300"
+                      fill
+                      className="object-contain group-hover/card:scale-105 transition-transform duration-300"
                       loading="lazy"
-                      placeholder="blur"
-                      blurDataURL="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAEtAJJXIDTiQAAAABJRU5ErkJggg=="
+                      sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       onError={(e) => {
                         e.target.src = '/images/default_product.png';
                       }}
@@ -575,33 +588,29 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
           </div>
         </div>
 
-        {/* Indicateurs de pagination (dots) - Optionnel */}
-        {filteredProducts.length > visibleProducts && (
+        {/* Indicateurs de pagination (dots) - Seulement si navigation nécessaire */}
+        {filteredProducts.length > visibleProducts && totalPages > 1 && (
           <div className="flex justify-center mt-4 space-x-2">
-            {Array.from({
-              length: Math.ceil(
-                Math.max(0, filteredProducts.length - visibleProducts) + 1,
-              ),
-            }).map((_, index) => (
+            {Array.from({ length: totalPages }).map((_, pageIndex) => (
               <button
-                key={index}
+                key={pageIndex}
                 onClick={() => {
-                  setCurrentIndex(index);
+                  setCurrentIndex(pageIndex);
                   setIsAutoScrolling(false);
                 }}
                 className={`w-2 h-2 rounded-full transition-colors duration-200 ${
-                  index === currentIndex
+                  pageIndex === currentIndex
                     ? 'bg-blue-600'
                     : 'bg-gray-300 hover:bg-gray-400'
                 }`}
-                aria-label={`Aller à la page ${index + 1}`}
+                aria-label={`Aller à la page ${pageIndex + 1}`}
               />
             ))}
           </div>
         )}
       </div>
 
-      {/* Message si moins de produits que la capacité d'affichage */}
+      {/* Message si tous les produits sont visibles */}
       {filteredProducts.length <= visibleProducts &&
         filteredProducts.length > 0 && (
           <p className="text-center text-sm text-gray-500 mt-4">
