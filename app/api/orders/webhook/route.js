@@ -132,7 +132,6 @@ export async function POST(req) {
             {
               $inc: {
                 stock: -item.quantity,
-                sold: item.quantity,
               },
             },
             { session },
