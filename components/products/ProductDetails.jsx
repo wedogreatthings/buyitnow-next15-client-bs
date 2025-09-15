@@ -488,7 +488,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
             className="absolute left-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-blue-600 text-blue-600 hover:text-white rounded-full p-2.5 shadow-lg border-2 border-blue-200 hover:border-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
             aria-label="Produits précédents"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-6 h-6" color="#2563eb" />
           </button>
         )}
 
@@ -500,7 +500,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
               className="absolute right-2 top-1/2 -translate-y-1/2 z-10 bg-white hover:bg-blue-600 text-blue-600 hover:text-white rounded-full p-2.5 shadow-lg border-2 border-blue-200 hover:border-blue-600 opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-blue-300"
               aria-label="Produits suivants"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-6 h-6" color="#2563eb" />
             </button>
           )}
 
