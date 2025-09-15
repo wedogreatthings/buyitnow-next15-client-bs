@@ -348,7 +348,7 @@ const RelatedProductsCarousel = memo(function RelatedProductsCarousel({
   // États pour la gestion du carrousel
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
-  const [visibleProducts, setVisibleProducts] = useState(4);
+  const [visibleProducts, setVisibleProducts] = useState(2);
 
   // Filtrer les produits pour exclure le produit actuel
   const filteredProducts = useMemo(
