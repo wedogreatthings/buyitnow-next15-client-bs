@@ -118,25 +118,17 @@ BuyItNow - © 2025`;
     }
 
     // Envoyer l'email via Resend
-    await resend.emails
-      .send(emailOptions)
-      .then((result) => {
-        console.log('Resend result:', result);
-      })
-      .catch((error) => {
-        console.error('Resend error:', error);
-      });
+    const result = await resend.emails.send(emailOptions);
 
     console.log('✅ Verification email sent successfully:', {
       to: email,
-      // messageId: result.id || result.messageId,
+      messageId: result.id || result.messageId,
       token: token.substring(0, 8) + '...',
     });
 
     return {
       success: true,
-      messageId: '12345',
-      // messageId: result.id || result.messageId,
+      messageId: result.id || result.messageId,
       email: email,
     };
   } catch (error) {
