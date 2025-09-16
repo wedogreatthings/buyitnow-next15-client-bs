@@ -52,22 +52,20 @@ export async function POST(req) {
 
     // ✅ AMÉLIORATION: Vérification d'unicité email ET téléphone
     const existingUser = await User.findOne({
-      $or: [{ email: validation.data.email }, { phone: validation.data.phone }],
+      $or: [{ email: validation.data.email }],
     });
 
     if (existingUser) {
-      const field =
-        existingUser.email === validation.data.email ? 'email' : 'téléphone';
       console.log(
-        `Registration attempt with existing ${field}:`,
+        `Registration attempt with existing email:`,
         validation.data.email,
       );
 
       return NextResponse.json(
         {
           success: false,
-          message: `Ce ${field} est déjà utilisé`,
-          code: 'DUPLICATE_' + field.toUpperCase(),
+          message: `Ce email est déjà utilisé`,
+          code: 'DUPLICATE_EMAIL',
         },
         { status: 400 },
       );
