@@ -16,7 +16,8 @@ import * as Sentry from '@sentry/nextjs';
 import CartContext from '@/context/CartContext';
 import { signOut, useSession } from 'next-auth/react';
 import AuthContext from '@/context/AuthContext';
-import { Menu, ShoppingCart, User, X } from 'lucide-react';
+import { Menu, ShoppingCart, User, X, AlertCircle } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 // Chargement dynamique optimisé du composant Search
 const Search = dynamic(() => import('./Search'), {
@@ -30,28 +31,54 @@ const Search = dynamic(() => import('./Search'), {
 const CART_LOAD_DELAY = 500;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
-// Sous-composants memoïsés pour éviter les re-rendus inutiles
-const CartButton = memo(({ cartCount }) => (
-  <Link
-    href="/cart"
-    className="px-3 py-2 flex flex-row text-gray-700 bg-white shadow-sm border border-gray-200 rounded-md hover:bg-blue-50 hover:border-blue-200 transition-colors relative"
-    aria-label="Panier"
-    data-testid="cart-button"
-  >
-    <ShoppingCart className="text-gray-400 w-5" />
-    <span className="ml-1">Panier ({cartCount > 0 ? cartCount : 0})</span>
-    {cartCount > 0 && (
-      <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-        {cartCount}
-      </span>
-    )}
-  </Link>
-));
+// ✅ NOUVEAU: Bouton panier avec gestion des utilisateurs non vérifiés
+const CartButton = memo(({ cartCount, isVerified = true, userEmail }) => {
+  const handleCartClick = (e) => {
+    if (!isVerified) {
+      e.preventDefault();
+      toast.warning('Veuillez vérifier votre email pour accéder au panier');
+      return false;
+    }
+  };
+
+  return (
+    <Link
+      href="/cart"
+      onClick={handleCartClick}
+      className={`px-3 py-2 flex flex-row text-gray-700 bg-white shadow-sm border border-gray-200 rounded-md transition-colors relative ${
+        isVerified
+          ? 'hover:bg-blue-50 hover:border-blue-200 cursor-pointer'
+          : 'opacity-60 cursor-not-allowed hover:bg-gray-50'
+      }`}
+      aria-label="Panier"
+      data-testid="cart-button"
+      title={
+        isVerified
+          ? 'Accéder au panier'
+          : 'Vérifiez votre email pour accéder au panier'
+      }
+    >
+      <ShoppingCart className="text-gray-400 w-5" />
+      <span className="ml-1">Panier ({cartCount > 0 ? cartCount : 0})</span>
+      {cartCount > 0 && (
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+          {cartCount}
+        </span>
+      )}
+      {/* ✅ NOUVEAU: Icône d'avertissement pour utilisateurs non vérifiés */}
+      {!isVerified && (
+        <AlertCircle className="absolute -top-1 -right-1 w-4 h-4 text-orange-500 bg-white rounded-full" />
+      )}
+    </Link>
+  );
+});
 
 CartButton.displayName = 'CartButton';
 
-const UserDropdown = memo(({ user }) => {
-  const menuItems = useMemo(
+// ✅ NOUVEAU: Dropdown utilisateur avec gestion vérification
+const UserDropdown = memo(({ user, isVerified = true }) => {
+  // Menus différents selon le statut de vérification
+  const verifiedMenuItems = useMemo(
     () => [
       { href: '/me', label: 'Mon profil' },
       { href: '/me/orders', label: 'Mes commandes' },
@@ -60,14 +87,41 @@ const UserDropdown = memo(({ user }) => {
     [],
   );
 
+  const unverifiedMenuItems = useMemo(
+    () => [
+      {
+        href: '/auth/verify',
+        label: '📧 Vérifier mon email',
+        className: 'text-orange-600 font-medium bg-orange-50',
+      },
+      {
+        href: '/help/verification',
+        label: 'Aide à la vérification',
+        className: 'text-blue-600',
+      },
+    ],
+    [],
+  );
+
+  const menuItems = isVerified ? verifiedMenuItems : unverifiedMenuItems;
+
   return (
     <div className="relative group">
       <Link
-        href="/me"
-        className="flex items-center space-x-2 px-3 py-2 rounded-md hover:bg-blue-50 transition-colors"
+        href={isVerified ? '/me' : '/auth/verify'}
+        className={`flex items-center space-x-2 px-3 py-2 rounded-md transition-colors ${
+          isVerified
+            ? 'hover:bg-blue-50'
+            : 'hover:bg-orange-50 border border-orange-200'
+        }`}
         aria-expanded="false"
         aria-haspopup="true"
         id="user-menu-button"
+        title={
+          isVerified
+            ? 'Menu utilisateur'
+            : 'Email non vérifié - Cliquez pour vérifier'
+        }
       >
         <div className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200">
           <Image
@@ -79,9 +133,22 @@ const UserDropdown = memo(({ user }) => {
             className="object-cover"
             priority={false}
           />
+          {/* ✅ NOUVEAU: Badge de vérification */}
+          {!isVerified && (
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-3 h-3 text-white" />
+            </div>
+          )}
         </div>
         <div className="hidden lg:block">
-          <p className="text-sm font-medium text-gray-700">{user?.name}</p>
+          <div className="flex items-center space-x-1">
+            <p className="text-sm font-medium text-gray-700">{user?.name}</p>
+            {!isVerified && (
+              <span className="text-xs bg-orange-100 text-orange-700 px-1 py-0.5 rounded">
+                Non vérifié
+              </span>
+            )}
+          </div>
           <p className="text-xs text-gray-500 truncate max-w-[150px]">
             {user?.email}
           </p>
@@ -95,6 +162,18 @@ const UserDropdown = memo(({ user }) => {
         className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200 z-50"
       >
         <div className="py-1">
+          {/* ✅ NOUVEAU: Message pour utilisateurs non vérifiés */}
+          {!isVerified && (
+            <div className="px-4 py-2 border-b border-orange-100 bg-orange-50">
+              <p className="text-xs text-orange-700 font-medium">
+                ⚠️ Email non vérifié
+              </p>
+              <p className="text-xs text-orange-600">
+                Fonctionnalités limitées
+              </p>
+            </div>
+          )}
+
           {menuItems.map((item, index) => (
             <Link
               key={`menu-item-${index}`}
@@ -141,6 +220,11 @@ const Header = () => {
   // Flag pour éviter les chargements multiples
   const isCartLoadingRef = useRef(false);
 
+  // ✅ NOUVEAU: Déterminer si l'utilisateur est vérifié
+  const isUserVerified = useMemo(() => {
+    return user?.verified === true || user?.isVerified === true;
+  }, [user?.verified, user?.isVerified]);
+
   // Cleanup des timeouts au démontage
   useEffect(() => {
     return () => {
@@ -153,6 +237,9 @@ const Header = () => {
 
   // Fonction loadCart optimisée avec debounce
   const loadCart = useCallback(async () => {
+    // ✅ NOUVEAU: Ne charger le panier que pour les utilisateurs vérifiés
+    if (!isUserVerified) return;
+
     // Éviter les chargements multiples
     if (isCartLoadingRef.current) return;
 
@@ -175,7 +262,7 @@ const Header = () => {
       setIsLoadingCart(false);
       isCartLoadingRef.current = false;
     }
-  }, [setCartToState]);
+  }, [setCartToState, isUserVerified]);
 
   // useEffect optimisé pour la gestion de session
   useEffect(() => {
@@ -190,12 +277,15 @@ const Header = () => {
           clearTimeout(loadCartTimeoutRef.current);
         }
 
-        if (data?.isNewLogin) {
-          loadCartTimeoutRef.current = setTimeout(() => {
-            if (mounted) loadCart();
-          }, CART_LOAD_DELAY);
-        } else {
-          loadCart();
+        // ✅ MODIFICATION: Charger le panier seulement si vérifié
+        if (isUserVerified) {
+          if (data?.isNewLogin) {
+            loadCartTimeoutRef.current = setTimeout(() => {
+              if (mounted) loadCart();
+            }, CART_LOAD_DELAY);
+          } else {
+            loadCart();
+          }
         }
       } catch (error) {
         Sentry.captureException(error, {
@@ -212,7 +302,7 @@ const Header = () => {
     return () => {
       mounted = false;
     };
-  }, [data, setUser, loadCart]);
+  }, [data, setUser, loadCart, isUserVerified]);
 
   // Fermer le menu mobile si on clique en dehors
   useEffect(() => {
@@ -222,7 +312,6 @@ const Header = () => {
         'button[aria-controls="mobile-menu"]',
       );
 
-      // Ne fermer que si on clique en dehors ET que ce n'est pas le bouton hamburger
       if (
         mobileMenu &&
         !mobileMenu.contains(event.target) &&
@@ -239,7 +328,6 @@ const Header = () => {
       }
     };
 
-    // Ajouter un petit délai pour éviter la fermeture immédiate
     if (mobileMenuOpen) {
       const timer = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
@@ -261,7 +349,6 @@ const Header = () => {
       clearCartOnLogout();
       await signOut({ callbackUrl: '/login' });
 
-      // Utiliser ref pour le timeout
       signOutTimeoutRef.current = setTimeout(() => {
         window.location.href = '/login';
       }, 100);
@@ -269,14 +356,21 @@ const Header = () => {
       if (!IS_PRODUCTION) {
         console.error('Erreur lors de la déconnexion:', error);
       }
-      // Fallback immédiat en cas d'erreur
       window.location.href = '/login';
     }
   }, [clearUser, clearCartOnLogout]);
 
-  // Fonction helper à ajouter dans le composant Header :
   const closeMobileMenu = () => {
     setMobileMenuOpen(false);
+  };
+
+  // ✅ NOUVEAU: Handler pour les clics sur le panier mobile
+  const handleMobileCartClick = (e) => {
+    if (!isUserVerified) {
+      e.preventDefault();
+      toast.warning('Veuillez vérifier votre email pour accéder au panier');
+      return false;
+    }
   };
 
   return (
@@ -302,8 +396,18 @@ const Header = () => {
             {user && (
               <Link
                 href="/cart"
-                className="px-3 py-2 inline-block text-center text-gray-700 bg-white shadow-sm border border-gray-200 rounded-md mr-2 relative"
+                onClick={handleMobileCartClick}
+                className={`px-3 py-2 inline-block text-center text-gray-700 bg-white shadow-sm border border-gray-200 rounded-md mr-2 relative ${
+                  isUserVerified
+                    ? 'hover:bg-blue-50'
+                    : 'opacity-60 cursor-not-allowed hover:bg-gray-50'
+                }`}
                 aria-label="Panier"
+                title={
+                  isUserVerified
+                    ? 'Accéder au panier'
+                    : 'Vérifiez votre email pour accéder au panier'
+                }
               >
                 <ShoppingCart className="text-gray-400 w-5" />
                 {cartCount > 0 && (
@@ -311,11 +415,14 @@ const Header = () => {
                     {cartCount}
                   </span>
                 )}
+                {!isUserVerified && (
+                  <AlertCircle className="absolute -top-1 -right-1 w-3 h-3 text-orange-500 bg-white rounded-full" />
+                )}
               </Link>
             )}
             <button
               onClick={(e) => {
-                e.stopPropagation(); // Empêche la propagation vers le listener "click outside"
+                e.stopPropagation();
                 setMobileMenuOpen(!mobileMenuOpen);
               }}
               className="px-3 py-2 border border-gray-200 rounded-md text-gray-700"
@@ -334,7 +441,13 @@ const Header = () => {
 
           {/* User navigation - Desktop */}
           <div className="hidden md:flex items-center space-x-3">
-            {user && <CartButton cartCount={cartCount} />}
+            {user && (
+              <CartButton
+                cartCount={cartCount}
+                isVerified={isUserVerified}
+                userEmail={user?.email}
+              />
+            )}
 
             {!user ? (
               <Link
@@ -346,7 +459,7 @@ const Header = () => {
                 <span className="ml-1">Connexion</span>
               </Link>
             ) : (
-              <UserDropdown user={user} />
+              <UserDropdown user={user} isVerified={isUserVerified} />
             )}
           </div>
         </div>
@@ -365,10 +478,31 @@ const Header = () => {
             </div>
             {user ? (
               <div className="space-y-3">
+                {/* ✅ NOUVEAU: Alerte pour utilisateurs non vérifiés en mobile */}
+                {!isUserVerified && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-md p-3 mb-4">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle className="w-4 h-4 text-orange-600" />
+                      <div>
+                        <p className="text-sm font-medium text-orange-800">
+                          Email non vérifié
+                        </p>
+                        <p className="text-xs text-orange-700">
+                          Accès limité aux fonctionnalités
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <Link
-                  href="/me"
-                  onClick={closeMobileMenu} // Ajouter cette ligne
-                  className="flex items-center space-x-2 px-2 py-2 rounded-md hover:bg-blue-50"
+                  href={isUserVerified ? '/me' : '/auth/verify'}
+                  onClick={closeMobileMenu}
+                  className={`flex items-center space-x-2 px-2 py-2 rounded-md ${
+                    isUserVerified
+                      ? 'hover:bg-blue-50'
+                      : 'hover:bg-orange-50 bg-orange-50'
+                  }`}
                 >
                   <div className="relative w-8 h-8 rounded-full overflow-hidden border border-gray-200">
                     <Image
@@ -380,6 +514,9 @@ const Header = () => {
                       sizes="32px"
                       className="object-cover"
                     />
+                    {!isUserVerified && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full"></div>
+                    )}
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-700">
@@ -387,27 +524,56 @@ const Header = () => {
                     </p>
                     <p className="text-xs text-gray-500 truncate max-w-[200px]">
                       {user?.email}
+                      {!isUserVerified && (
+                        <span className="ml-1 text-orange-600">
+                          (Non vérifié)
+                        </span>
+                      )}
                     </p>
                   </div>
                 </Link>
-                <Link
-                  href="/me/orders"
-                  onClick={closeMobileMenu} // Ajouter cette ligne
-                  className="block px-2 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-md"
-                >
-                  Mes commandes
-                </Link>
-                <Link
-                  href="/me/contact"
-                  onClick={closeMobileMenu} // Ajouter cette ligne
-                  className="block px-2 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-md"
-                >
-                  Contactez le vendeur
-                </Link>
+
+                {/* ✅ NOUVEAU: Menu conditionnel selon le statut de vérification */}
+                {isUserVerified ? (
+                  <>
+                    <Link
+                      href="/me/orders"
+                      onClick={closeMobileMenu}
+                      className="block px-2 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-md"
+                    >
+                      Mes commandes
+                    </Link>
+                    <Link
+                      href="/me/contact"
+                      onClick={closeMobileMenu}
+                      className="block px-2 py-2 text-sm text-gray-700 hover:bg-blue-50 rounded-md"
+                    >
+                      Contactez le vendeur
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth/verify"
+                      onClick={closeMobileMenu}
+                      className="block px-2 py-2 text-sm text-orange-600 font-medium bg-orange-50 hover:bg-orange-100 rounded-md"
+                    >
+                      📧 Vérifier mon email
+                    </Link>
+                    <Link
+                      href="/help/verification"
+                      onClick={closeMobileMenu}
+                      className="block px-2 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-md"
+                    >
+                      Aide à la vérification
+                    </Link>
+                  </>
+                )}
+
                 <button
                   onClick={async () => {
-                    closeMobileMenu(); // Fermer le menu d'abord
-                    await handleSignOut(); // Puis déconnecter
+                    closeMobileMenu();
+                    await handleSignOut();
                   }}
                   className="block cursor-pointer w-full text-left px-2 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md"
                 >
@@ -417,7 +583,7 @@ const Header = () => {
             ) : (
               <Link
                 href="/login"
-                onClick={closeMobileMenu} // Ajouter cette ligne
+                onClick={closeMobileMenu}
                 className="block w-full text-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
               >
                 Connexion

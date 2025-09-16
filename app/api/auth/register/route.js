@@ -4,35 +4,7 @@ import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
 import { validateRegister } from '@/helpers/validation/schemas/auth';
 import { captureException } from '@/monitoring/sentry';
-
-/**
- * Service d'email simplifié - À remplacer par votre service réel
- */
-const sendVerificationEmail = async (email, name, token) => {
-  // En développement, juste un log
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`
-🔗 EMAIL DE VÉRIFICATION:
-📧 To: ${email}
-👤 Name: ${name}
-🔑 Token: ${token}
-🌐 Link: ${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}
-    `);
-    return { success: true };
-  }
-
-  // TODO: Implémenter avec votre service d'email (SendGrid, Nodemailer, etc.)
-  // const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}`;
-  //
-  // return await yourEmailService.send({
-  //   to: email,
-  //   subject: 'Vérifiez votre adresse email',
-  //   template: 'verification',
-  //   data: { name, verificationUrl }
-  // });
-
-  return { success: false, error: 'Email service not configured' };
-};
+import { sendVerificationEmail } from '@/utils/emailService'; // ✅ Import du vrai service
 
 /**
  * POST /api/auth/register
@@ -136,7 +108,7 @@ export async function POST(req) {
       verified: user.verified,
     });
 
-    // ✅ AMÉLIORATION: Envoyer email de vérification avec gestion d'erreur non bloquante
+    // ✅ AMÉLIORATION: Envoyer email de vérification avec le vrai service
     let emailSent = false;
     let emailError = null;
 
@@ -149,7 +121,10 @@ export async function POST(req) {
 
       if (emailResult.success) {
         emailSent = true;
-        console.log('📧 Verification email sent successfully to:', user.email);
+        console.log('📧 Verification email sent successfully:', {
+          to: user.email?.substring(0, 3) + '***',
+          messageId: emailResult.messageId,
+        });
       } else {
         emailError = emailResult.error;
         console.warn(
@@ -164,8 +139,8 @@ export async function POST(req) {
       // Ne pas faire échouer l'inscription si l'email ne part pas
       captureException(error, {
         tags: { component: 'email', action: 'verification' },
-        user: { id: user._id, email: user.email },
-        extra: { verificationToken },
+        user: { id: user._id, email: user.email?.substring(0, 3) + '***' },
+        extra: { verificationToken: verificationToken.substring(0, 8) + '...' },
       });
     }
 
@@ -188,6 +163,18 @@ export async function POST(req) {
           avatar: user.avatar,
         },
         emailSent,
+        // ✅ AMÉLIORATION: Instructions pour l'utilisateur
+        nextSteps: emailSent
+          ? [
+              'Consultez votre boîte email',
+              'Cliquez sur le lien de vérification',
+              'Connectez-vous à votre compte',
+            ]
+          : [
+              'Votre compte a été créé',
+              "L'email de vérification va arriver sous peu",
+              'Consultez vos spams si nécessaire',
+            ],
         ...(emailError &&
           process.env.NODE_ENV === 'development' && {
             emailError,
@@ -253,9 +240,9 @@ export async function POST(req) {
       tags: { component: 'api', route: 'auth/register' },
       extra: {
         userData: {
-          email: userData?.email,
+          email: userData?.email?.substring(0, 3) + '***',
           name: userData?.name,
-          phone: userData?.phone,
+          phone: userData?.phone?.substring(0, 3) + '***',
         },
       },
     });

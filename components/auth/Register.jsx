@@ -3,14 +3,13 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import { CheckCircle, Mail } from 'lucide-react';
 import AuthContext from '@/context/AuthContext';
-// import { registerSchema } from '@/helpers/schemas';
 
 const Register = () => {
   // Contexte d'authentification
   const {
     error,
-    registerUser,
     clearErrors,
     loading: contextLoading,
   } = useContext(AuthContext);
@@ -26,6 +25,8 @@ const Register = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [registrationData, setRegistrationData] = useState(null);
   const formRef = useRef(null);
 
   // Détection de l'état de la connexion internet
@@ -42,7 +43,7 @@ const Register = () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [navigator]);
+  }, []);
 
   // Gestion des erreurs depuis le contexte
   useEffect(() => {
@@ -68,26 +69,11 @@ const Register = () => {
       [name]: value,
     }));
 
-    // Validation en temps réel
-    // await validateField(name, value);
-
     // Calcul de la force du mot de passe
     if (name === 'password') {
       calculatePasswordStrength(value);
     }
   };
-
-  // Validation d'un champ individuel
-  // const validateField = async (name, value) => {
-  //   try {
-  //     await registerSchema.validateAt(name, { [name]: value });
-  //     setErrors((prev) => ({ ...prev, [name]: undefined }));
-  //     return true;
-  //   } catch (error) {
-  //     setErrors((prev) => ({ ...prev, [name]: error.message }));
-  //     return false;
-  //   }
-  // };
 
   // Calcul de la force du mot de passe (0-100)
   const calculatePasswordStrength = (password) => {
@@ -129,25 +115,64 @@ const Register = () => {
     setIsSubmitting(true);
 
     try {
-      // Soumission au serveur
-      await registerUser({
-        ...formData,
+      // ✅ NOUVELLE APPROCHE: Appel direct à l'API au lieu du contexte
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
 
-      // Réinitialisation du formulaire en cas de succès
-      if (!error) {
-        formRef.current?.reset();
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        // ✅ SUCCÈS: Inscription réussie
+        setRegistrationSuccess(true);
+        setRegistrationData(data.data);
+
+        // Réinitialiser le formulaire
         setFormData({
           name: '',
           phone: '',
           email: '',
           password: '',
         });
+        setPasswordStrength(0);
+
+        // Toast de succès
+        toast.success(data.message || 'Inscription réussie !');
+
+        // Log pour développement
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Registration successful:', {
+            user: data.data?.user?.email,
+            emailSent: data.data?.emailSent,
+            nextSteps: data.data?.nextSteps,
+          });
+        }
+      } else {
+        // ✅ ERREUR: Gestion des erreurs spécifiques
+        switch (data.code) {
+          case 'DUPLICATE_EMAIL':
+          case 'DUPLICATE_TELEPHONE':
+            toast.error(data.message);
+            break;
+          case 'VALIDATION_FAILED':
+            if (data.errors) {
+              setErrors(data.errors);
+              toast.error('Veuillez corriger les erreurs dans le formulaire');
+            } else {
+              toast.error(data.message);
+            }
+            break;
+          default:
+            toast.error(data.message || "Erreur lors de l'inscription");
+        }
       }
     } catch (error) {
-      // Traitement générique des erreurs
-      toast.error('Une erreur est survenue. Veuillez réessayer.');
       console.error('Registration error:', error);
+      toast.error('Une erreur est survenue. Veuillez réessayer.');
     } finally {
       setIsSubmitting(false);
     }
@@ -167,6 +192,126 @@ const Register = () => {
     return 'Fort';
   };
 
+  // ✅ NOUVEAU: Écran de succès après inscription
+  if (registrationSuccess && registrationData) {
+    return (
+      <div className="max-w-md w-full mx-auto mt-8 mb-16 p-4 md:p-7 rounded-lg bg-white shadow-lg">
+        {/* Icône de succès */}
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
+        </div>
+
+        {/* Titre */}
+        <h2 className="text-2xl font-bold text-green-800 text-center mb-4">
+          Inscription réussie ! 🎉
+        </h2>
+
+        {/* Informations utilisateur */}
+        <div className="bg-gray-50 rounded-md p-4 mb-6 border border-gray-200">
+          <p className="text-sm text-gray-600 mb-2">
+            <span className="font-medium">Nom :</span>{' '}
+            {registrationData.user?.name}
+          </p>
+          <p className="text-sm text-gray-600">
+            <span className="font-medium">Email :</span>{' '}
+            {registrationData.user?.email}
+          </p>
+        </div>
+
+        {/* Status email */}
+        <div
+          className={`rounded-md p-4 mb-6 border ${
+            registrationData.emailSent
+              ? 'bg-blue-50 border-blue-200'
+              : 'bg-yellow-50 border-yellow-200'
+          }`}
+        >
+          <div className="flex items-center">
+            <Mail
+              className={`w-5 h-5 mr-2 ${
+                registrationData.emailSent ? 'text-blue-600' : 'text-yellow-600'
+              }`}
+            />
+            <div>
+              <p
+                className={`font-medium text-sm ${
+                  registrationData.emailSent
+                    ? 'text-blue-800'
+                    : 'text-yellow-800'
+                }`}
+              >
+                {registrationData.emailSent
+                  ? 'Email de vérification envoyé !'
+                  : "Email en cours d'envoi..."}
+              </p>
+              <p
+                className={`text-xs mt-1 ${
+                  registrationData.emailSent
+                    ? 'text-blue-700'
+                    : 'text-yellow-700'
+                }`}
+              >
+                {registrationData.emailSent
+                  ? 'Consultez votre boîte email et vos spams.'
+                  : 'Vous recevrez un email sous peu.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Étapes suivantes */}
+        {registrationData.nextSteps && (
+          <div className="mb-6">
+            <h3 className="font-medium text-gray-800 mb-3">
+              Étapes suivantes :
+            </h3>
+            <ol className="list-decimal list-inside space-y-1 text-sm text-gray-600">
+              {registrationData.nextSteps.map((step, index) => (
+                <li key={index}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        )}
+
+        {/* Boutons d'action */}
+        <div className="space-y-3">
+          <Link
+            href="/login"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-md transition duration-200 text-center block"
+          >
+            Se connecter maintenant
+          </Link>
+
+          <button
+            onClick={() => {
+              setRegistrationSuccess(false);
+              setRegistrationData(null);
+            }}
+            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-md transition duration-200 text-center"
+          >
+            Créer un autre compte
+          </button>
+        </div>
+
+        {/* Aide */}
+        <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+          <p className="text-xs text-gray-500 mb-2">
+            Vous ne recevez pas l&apos;email ?
+          </p>
+          <Link
+            href="/auth/help"
+            className="text-xs text-blue-600 hover:text-blue-800 underline"
+          >
+            Obtenir de l&apos;aide
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ FORMULAIRE D'INSCRIPTION (état normal)
   return (
     <div className="max-w-md w-full mx-auto mt-8 mb-16 p-4 md:p-7 rounded-lg bg-white shadow-lg">
       <form ref={formRef} onSubmit={submitHandler} noValidate>
@@ -199,7 +344,6 @@ const Register = () => {
             placeholder="Votre nom complet"
             value={formData.name}
             onChange={handleChange}
-            // onBlur={(e) => validateField('name', e.target.value)}
             disabled={isSubmitting || contextLoading}
             aria-invalid={errors.name ? 'true' : 'false'}
             aria-describedby={errors.name ? 'name-error' : undefined}
@@ -233,7 +377,6 @@ const Register = () => {
             placeholder="Votre numéro de téléphone"
             value={formData.phone}
             onChange={handleChange}
-            // onBlur={(e) => validateField('phone', e.target.value)}
             disabled={isSubmitting || contextLoading}
             aria-invalid={errors.phone ? 'true' : 'false'}
             aria-describedby={errors.phone ? 'phone-error' : undefined}
@@ -270,7 +413,6 @@ const Register = () => {
             placeholder="Votre adresse email"
             value={formData.email}
             onChange={handleChange}
-            // onBlur={(e) => validateField('email', e.target.value)}
             disabled={isSubmitting || contextLoading}
             aria-invalid={errors.email ? 'true' : 'false'}
             aria-describedby={errors.email ? 'email-error' : undefined}
@@ -304,7 +446,6 @@ const Register = () => {
             placeholder="Créez un mot de passe sécurisé"
             value={formData.password}
             onChange={handleChange}
-            // onBlur={(e) => validateField('password', e.target.value)}
             disabled={isSubmitting || contextLoading}
             minLength={8}
             aria-invalid={errors.password ? 'true' : 'false'}
@@ -328,7 +469,6 @@ const Register = () => {
               <div className="h-1 w-full bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${getPasswordStrengthColor()} transition-all duration-300`}
-                  // eslint-disable-next-line react/forbid-dom-props
                   style={{ width: `${passwordStrength}%` }}
                 />
               </div>
