@@ -1,11 +1,7 @@
 'use client';
 
-import { memo, useState, useContext, useCallback } from 'react';
+import { memo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { captureException } from '@/monitoring/sentry';
-import { formatPrice } from '@/helpers/helpers';
-
-import OrderContext from '@/context/OrderContext';
 
 // Chargement dynamique des composants
 const OrderedProduct = dynamic(() => import('./OrderedProduct'), {
@@ -17,31 +13,39 @@ const OrderedProduct = dynamic(() => import('./OrderedProduct'), {
 
 /**
  * Composant d'affichage d'une commande individuelle
- * Optimisé avec mémoïsation et gestion d'erreurs
+ * Version améliorée avec tous les champs du modèle Order
  */
-const OrderItem = memo(({ order }) => {
+const OrderItem = memo(({ order, deliveryPrice = 0 }) => {
   const [expanded, setExpanded] = useState(false);
-  const { deliveryPrice } = useContext(OrderContext);
 
   // Validation des données
   if (!order || typeof order !== 'object' || !order._id) {
     return null;
   }
 
-  // Formatage des dates
-  const formatDate = useCallback((dateString) => {
+  // Formatage des dates avec gestion d'erreur
+  const formatDate = useCallback((dateString, format = 'full') => {
     if (!dateString) return 'Date non disponible';
     try {
-      return new Date(dateString).toLocaleDateString('fr-FR', {
+      const date = new Date(dateString);
+
+      if (format === 'short') {
+        return date.toLocaleDateString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        });
+      }
+
+      return date.toLocaleDateString('fr-FR', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
       });
     } catch (err) {
-      captureException(err, {
-        tags: { component: 'OrderItem', action: 'formatDate' },
-        extra: { dateString },
-      });
+      console.error('Date formatting error:', err);
       return dateString.substring(0, 10);
     }
   }, []);
@@ -51,35 +55,75 @@ const OrderItem = memo(({ order }) => {
     setExpanded((prev) => !prev);
   }, []);
 
-  // Validation et récupération sécurisée des données
-  const orderNumber = order.orderNumber || order._id.substring(0, 8);
-  const orderDate = formatDate(order.createdAt);
+  // Extraction et validation des données de la commande
+  const orderNumber = order.orderNumber || `ORD-${order._id.substring(0, 8)}`;
+  const updatedDate = order.updatedAt ? formatDate(order.updatedAt) : null;
   const paymentStatus = order.paymentStatus || 'unpaid';
   const orderStatus = order.orderStatus || 'Processing';
   const hasShippingInfo = !!order.shippingInfo;
 
-  // Calcul des montants
-  const amountPaid = order.paymentInfo?.amountPaid || 0;
-  const deliveryAmount = hasShippingInfo ? deliveryPrice || 0 : 0;
-  const productsAmount = amountPaid - deliveryAmount;
+  // Utilisation des montants du modèle Order
+  const totalAmount = order.totalAmount || 0;
+  const shippingAmount =
+    order.shippingAmount || (hasShippingInfo ? deliveryPrice : 0);
+  const taxAmount = order.taxAmount || 0;
+  const itemsTotal = totalAmount - shippingAmount - taxAmount;
 
-  // Déterminer les statuts pour l'affichage
-  const paymentStatusColor =
-    paymentStatus === 'paid' ? 'text-green-800' : 'text-red-800';
-  const orderStatusColor =
-    orderStatus === 'Processing' ? 'text-red-500' : 'text-green-500';
+  // Calcul du nombre total d'articles
+  const totalItems =
+    order.orderItems?.reduce(
+      (total, item) => total + (item.quantity || 0),
+      0,
+    ) || 0;
+
+  // Configuration des couleurs selon le statut de paiement
+  const getPaymentStatusStyle = (status) => {
+    switch (status) {
+      case 'paid':
+        return 'text-green-600 bg-green-100';
+      case 'unpaid':
+        return 'text-red-600 bg-red-100';
+      case 'refunded':
+        return 'text-orange-600 bg-orange-100';
+      case 'cancelled':
+        return 'text-gray-600 bg-gray-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  // Configuration des couleurs selon le statut de commande
+  const getOrderStatusStyle = (status) => {
+    switch (status) {
+      case 'Delivered':
+        return 'text-green-600 bg-green-100';
+      case 'Shipped':
+        return 'text-blue-600 bg-blue-100';
+      case 'Processing':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'Unpaid':
+        return 'text-red-600 bg-red-100';
+      case 'Cancelled':
+        return 'text-gray-600 bg-gray-100';
+      case 'Returned':
+        return 'text-orange-600 bg-orange-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
 
   return (
-    <article className="p-3 lg:p-5 mb-5 bg-white border border-blue-600 rounded-md shadow-sm hover:shadow-md transition-shadow">
+    <article className="p-3 lg:p-5 mb-5 bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md transition-shadow">
       <header className="lg:flex justify-between mb-4">
         <div className="mb-4 lg:mb-0">
           <div className="flex items-center">
             <h3 className="font-semibold text-lg">
-              Commande: <span className="font-mono">{orderNumber}</span>
+              Commande:{' '}
+              <span className="font-mono text-gray-700">{orderNumber}</span>
             </h3>
             <button
               onClick={toggleExpanded}
-              className="ml-2 p-1 rounded-full hover:bg-gray-100"
+              className="ml-2 p-1 rounded-full hover:bg-gray-100 transition-colors"
               aria-label={
                 expanded ? 'Réduire les détails' : 'Voir plus de détails'
               }
@@ -100,44 +144,67 @@ const OrderItem = memo(({ order }) => {
               </svg>
             </button>
           </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
+
+          <div className="flex flex-wrap items-center gap-2 mt-2">
             <span
-              className={`font-semibold rounded-full px-2 py-0.5 text-xs ${paymentStatusColor} bg-opacity-10 ${paymentStatus === 'paid' ? 'bg-green-100' : 'bg-red-100'}`}
+              className={`px-2 py-1 rounded-full text-xs font-semibold ${getPaymentStatusStyle(paymentStatus)}`}
             >
               {paymentStatus.toUpperCase()}
             </span>
 
             {hasShippingInfo && (
               <span
-                className={`font-semibold rounded-full px-2 py-0.5 text-xs ${orderStatusColor} bg-opacity-10 ${orderStatus === 'Processing' ? 'bg-red-100' : 'bg-green-100'}`}
+                className={`px-2 py-1 rounded-full text-xs font-semibold ${getOrderStatusStyle(orderStatus)}`}
               >
                 {orderStatus.toUpperCase()}
               </span>
             )}
 
-            <span className="text-gray-500 text-sm ml-2">{orderDate}</span>
+            {!hasShippingInfo && (
+              <span className="px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-600">
+                RETRAIT EN MAGASIN
+              </span>
+            )}
+
+            <span className="text-gray-500 text-sm ml-2">
+              {formatDate(order.createdAt, 'short')}
+            </span>
+
+            <span className="text-gray-500 text-sm">
+              • {totalItems} article{totalItems > 1 ? 's' : ''}
+            </span>
           </div>
+        </div>
+
+        {/* Montant total en header */}
+        <div className="text-right">
+          <p className="text-sm text-gray-600">Montant total</p>
+          <p className="text-2xl font-bold text-blue-600">
+            ${totalAmount.toFixed(2)}
+          </p>
         </div>
       </header>
 
       <div className="grid md:grid-cols-4 gap-4">
         <div>
-          <p className="text-blue-700 mb-1 font-medium text-sm">Client</p>
-          <ul className="text-gray-600 text-sm">
-            <li>{order.user?.name || 'Client'}</li>
-            <li>{order.user?.phone || '-'}</li>
-            <li className="text-gray-500 text-xs truncate">
-              {order.user?.email || '-'}
+          <p className="text-gray-600 mb-1 font-medium text-sm">Client</p>
+          <ul className="text-gray-700 text-sm space-y-1">
+            <li className="font-medium">{order.user?.name || 'Client'}</li>
+            {order.user?.phone && (
+              <li className="text-gray-600">{order.user.phone}</li>
+            )}
+            <li className="text-gray-600 text-xs truncate">
+              {order.user?.email || 'Email non disponible'}
             </li>
           </ul>
         </div>
 
-        {hasShippingInfo && (
+        {hasShippingInfo ? (
           <div>
-            <p className="text-blue-700 mb-1 font-medium text-sm">
+            <p className="text-gray-600 mb-1 font-medium text-sm">
               Adresse de livraison
             </p>
-            <ul className="text-gray-600 text-sm">
+            <ul className="text-gray-700 text-sm space-y-1">
               <li>{order.shippingInfo?.street || '-'}</li>
               <li>
                 {[
@@ -146,46 +213,86 @@ const OrderItem = memo(({ order }) => {
                   order.shippingInfo?.zipCode,
                 ]
                   .filter(Boolean)
-                  .join(', ')}
+                  .join(', ') || '-'}
               </li>
-              <li>{order.shippingInfo?.country || '-'}</li>
+              <li className="font-medium">
+                {order.shippingInfo?.country || '-'}
+              </li>
             </ul>
+          </div>
+        ) : (
+          <div>
+            <p className="text-gray-600 mb-1 font-medium text-sm">
+              Mode de réception
+            </p>
+            <div className="bg-blue-50 p-2 rounded text-sm">
+              <p className="font-medium text-blue-800">Retrait en magasin</p>
+              <p className="text-blue-600 text-xs mt-1">
+                Aucuns frais de livraison
+              </p>
+            </div>
           </div>
         )}
 
         <div>
-          <p className="text-blue-700 mb-1 font-medium text-sm">Montant payé</p>
-          <ul className="text-gray-600 text-sm">
+          <p className="text-gray-600 mb-1 font-medium text-sm">
+            Détail financier
+          </p>
+          <ul className="text-gray-700 text-sm space-y-1">
             <li>
-              <span className="font-semibold">Produits:</span>{' '}
-              {formatPrice(productsAmount)}
+              <span className="text-gray-600">Articles:</span>{' '}
+              <span className="font-medium">${itemsTotal.toFixed(2)}</span>
             </li>
+            {taxAmount > 0 && (
+              <li>
+                <span className="text-gray-600">Taxes:</span>{' '}
+                <span className="font-medium">${taxAmount.toFixed(2)}</span>
+              </li>
+            )}
             <li>
-              <span className="font-semibold">Livraison:</span>{' '}
-              {formatPrice(deliveryAmount)}
+              <span className="text-gray-600">Livraison:</span>{' '}
+              <span className="font-medium">${shippingAmount.toFixed(2)}</span>
             </li>
-            <li className="font-medium text-gray-800">
+            <li className="pt-1 border-t border-gray-200">
               <span className="font-semibold">Total:</span>{' '}
-              {formatPrice(amountPaid)}
+              <span className="font-bold text-blue-600">
+                ${totalAmount.toFixed(2)}
+              </span>
             </li>
           </ul>
         </div>
 
         <div>
-          <p className="text-blue-700 mb-1 font-medium text-sm">Paiement</p>
-          <ul className="text-gray-600 text-sm">
+          <p className="text-gray-600 mb-1 font-medium text-sm">
+            Information de paiement
+          </p>
+          <ul className="text-gray-700 text-sm space-y-1">
             <li>
-              <span className="font-semibold">Mode:</span>{' '}
-              {order.paymentInfo?.typePayment || '-'}
+              <span className="text-gray-600">Mode:</span>{' '}
+              <span className="font-medium">
+                {order.paymentInfo?.typePayment || '-'}
+              </span>
             </li>
             <li>
-              <span className="font-semibold">Nom:</span>{' '}
-              {order.paymentInfo?.paymentAccountName || '-'}
+              <span className="text-gray-600">Nom:</span>{' '}
+              <span className="font-medium">
+                {order.paymentInfo?.paymentAccountName || '-'}
+              </span>
             </li>
             <li>
-              <span className="font-semibold">Numéro:</span>{' '}
-              {order.paymentInfo?.paymentAccountNumber || '-'}
+              <span className="text-gray-600">Numéro:</span>{' '}
+              <span className="font-medium">
+                {order.paymentInfo?.paymentAccountNumber || '••••••••'}
+              </span>
             </li>
+            {order.paymentInfo?.amountPaid !== undefined && (
+              <li>
+                <span className="text-gray-600">Montant payé:</span>{' '}
+                <span className="font-medium">
+                  ${order.paymentInfo.amountPaid.toFixed(2)}
+                </span>
+              </li>
+            )}
           </ul>
         </div>
       </div>
@@ -193,8 +300,67 @@ const OrderItem = memo(({ order }) => {
       {expanded && (
         <>
           <hr className="my-4" />
+
+          {/* Timeline des dates importantes */}
+          {(order.paidAt || order.deliveredAt || order.cancelledAt) && (
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <p className="text-gray-600 mb-2 font-medium text-sm">
+                Historique de la commande
+              </p>
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
+                {order.paidAt && (
+                  <div>
+                    <span className="font-medium text-green-600">
+                      Payée le:
+                    </span>
+                    <p className="text-gray-700">{formatDate(order.paidAt)}</p>
+                  </div>
+                )}
+                {order.deliveredAt && (
+                  <div>
+                    <span className="font-medium text-blue-600">
+                      Livrée le:
+                    </span>
+                    <p className="text-gray-700">
+                      {formatDate(order.deliveredAt)}
+                    </p>
+                  </div>
+                )}
+                {order.cancelledAt && (
+                  <div>
+                    <span className="font-medium text-red-600">
+                      Annulée le:
+                    </span>
+                    <p className="text-gray-700">
+                      {formatDate(order.cancelledAt)}
+                    </p>
+                  </div>
+                )}
+                {updatedDate && (
+                  <div>
+                    <span className="font-medium text-gray-600">
+                      Dernière mise à jour:
+                    </span>
+                    <p className="text-gray-700">{updatedDate}</p>
+                  </div>
+                )}
+              </div>
+
+              {order.cancelReason && (
+                <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                  <p className="font-medium text-red-600 text-sm">
+                    Raison d&apos;annulation:
+                  </p>
+                  <p className="text-red-700 text-sm mt-1">
+                    {order.cancelReason}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div>
-            <p className="text-blue-700 mb-3 font-medium">Articles commandés</p>
+            <p className="text-gray-600 mb-3 font-medium">Articles commandés</p>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
               {order.orderItems &&
               Array.isArray(order.orderItems) &&
@@ -221,7 +387,7 @@ const OrderItem = memo(({ order }) => {
       <div className="text-center mt-4">
         <button
           onClick={toggleExpanded}
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
         >
           {expanded ? 'Masquer les détails' : 'Afficher les détails'}
         </button>

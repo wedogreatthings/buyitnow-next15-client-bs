@@ -1,14 +1,11 @@
 'use client';
 
-import { useState, useContext, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { captureException } from '@/monitoring/sentry';
-
-import OrderContext from '@/context/OrderContext';
 
 // Chargement dynamique des composants
-const OrderItem = dynamic(() => import('@/components/orders/OrderItem'), {
+const OrderItem = dynamic(() => import('./OrderItem'), {
   loading: () => <OrderItemSkeleton />,
   ssr: true,
 });
@@ -18,7 +15,7 @@ const CustomPagination = dynamic(
   { ssr: true },
 );
 
-// Composant squelette pour le chargement des commandes
+// Composant squelette pour le chargement
 const OrderItemSkeleton = () => (
   <div
     className="p-3 lg:p-5 mb-5 bg-white border border-gray-200 rounded-md animate-pulse"
@@ -45,12 +42,14 @@ const OrderItemSkeleton = () => (
 
 /**
  * Composant d'affichage de la liste des commandes
- * Gère l'état, le contexte et l'affichage conditionnel
+ * Version améliorée avec tous les champs du modèle
  */
 const ListOrders = ({ orders }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { setDeliveryPrice } = useContext(OrderContext);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [sortOrder, setSortOrder] = useState('desc');
+
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -73,37 +72,73 @@ const ListOrders = ({ orders }) => {
       : 1;
   }, [orders]);
 
-  // Mise à jour du prix de livraison dans le contexte
-  useEffect(() => {
-    try {
-      // Vérifier que les données sont valides avant mise à jour
-      if (
-        orders?.deliveryPrice &&
-        Array.isArray(orders.deliveryPrice) &&
-        orders.deliveryPrice[0]?.deliveryPrice
-      ) {
-        setDeliveryPrice(orders.deliveryPrice[0].deliveryPrice);
-      }
-    } catch (err) {
-      console.error('Error setting delivery price:', err);
-      captureException(err, {
-        tags: { component: 'ListOrders', action: 'setDeliveryPrice' },
+  // Filtrage et tri des commandes
+  const filteredAndSortedOrders = useMemo(() => {
+    if (!hasOrders) return [];
+
+    let filtered = [...orders.orders];
+
+    // Filtrage par statut
+    if (filterStatus !== 'all') {
+      filtered = filtered.filter((order) => {
+        if (filterStatus === 'paid') return order.paymentStatus === 'paid';
+        if (filterStatus === 'unpaid') return order.paymentStatus === 'unpaid';
+        if (filterStatus === 'refunded')
+          return order.paymentStatus === 'refunded';
+        if (filterStatus === 'cancelled')
+          return order.paymentStatus === 'cancelled';
+        if (filterStatus === 'delivered')
+          return order.orderStatus === 'Delivered';
+        if (filterStatus === 'processing')
+          return order.orderStatus === 'Processing';
+        if (filterStatus === 'shipped') return order.orderStatus === 'Shipped';
+        return true;
       });
     }
-  }, [orders]);
+
+    // Tri par date
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt);
+      const dateB = new Date(b.createdAt);
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    return filtered;
+  }, [hasOrders, orders?.orders, filterStatus, sortOrder]);
+
+  // Statistiques des commandes
+  const orderStats = useMemo(() => {
+    if (!hasOrders)
+      return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
+
+    return orders.orders.reduce(
+      (stats, order) => {
+        stats.total++;
+        if (order.paymentStatus === 'paid') {
+          stats.paid++;
+          stats.totalAmount += order.totalAmount || 0;
+        }
+        if (order.paymentStatus === 'unpaid') stats.unpaid++;
+        if (order.orderStatus === 'Delivered') stats.delivered++;
+        return stats;
+      },
+      { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 },
+    );
+  }, [hasOrders, orders?.orders]);
 
   // Naviguer vers une page spécifique
-  const handlePageChange = useCallback((pageNumber) => {
-    try {
-      setIsLoading(true);
-      router.push(`/me/orders?page=${pageNumber}`);
-    } catch (err) {
-      setError('Erreur lors du changement de page');
-      captureException(err, {
-        tags: { component: 'ListOrders', action: 'pageChange' },
-      });
-    }
-  }, []);
+  const handlePageChange = useCallback(
+    (pageNumber) => {
+      try {
+        setIsLoading(true);
+        router.push(`/me/orders?page=${pageNumber}`);
+      } catch (err) {
+        setError('Erreur lors du changement de page');
+        console.error('Error changing page:', err);
+      }
+    },
+    [router],
+  );
 
   // Réinitialiser les états lors du changement de données
   useEffect(() => {
@@ -125,9 +160,76 @@ const ListOrders = ({ orders }) => {
 
   return (
     <div className="orders-container">
-      <h2 className="text-xl font-semibold mb-5">
-        Historique de vos commandes
-      </h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+        <h2 className="text-xl font-semibold mb-4 sm:mb-0">
+          Historique de vos commandes
+        </h2>
+
+        {/* Filtres et tri */}
+        {hasOrders && (
+          <div className="flex gap-2 flex-wrap">
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="paid">Payées</option>
+              <option value="unpaid">Non payées</option>
+              <option value="refunded">Remboursées</option>
+              <option value="cancelled">Annulées</option>
+              <option value="delivered">Livrées</option>
+              <option value="processing">En traitement</option>
+              <option value="shipped">Expédiées</option>
+            </select>
+
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="desc">Plus récentes</option>
+              <option value="asc">Plus anciennes</option>
+            </select>
+          </div>
+        )}
+      </div>
+
+      {/* Statistiques */}
+      {hasOrders && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+          <div className="bg-gray-50 p-3 rounded-md">
+            <p className="text-sm text-gray-600">Total commandes</p>
+            <p className="text-xl font-bold text-gray-900">
+              {orderStats.total}
+            </p>
+          </div>
+          <div className="bg-green-50 p-3 rounded-md">
+            <p className="text-sm text-green-600">Payées</p>
+            <p className="text-xl font-bold text-green-900">
+              {orderStats.paid}
+            </p>
+          </div>
+          <div className="bg-red-50 p-3 rounded-md">
+            <p className="text-sm text-red-600">Non payées</p>
+            <p className="text-xl font-bold text-red-900">
+              {orderStats.unpaid}
+            </p>
+          </div>
+          <div className="bg-blue-50 p-3 rounded-md">
+            <p className="text-sm text-blue-600">Livrées</p>
+            <p className="text-xl font-bold text-blue-900">
+              {orderStats.delivered}
+            </p>
+          </div>
+          <div className="bg-purple-50 p-3 rounded-md">
+            <p className="text-sm text-purple-600">Montant total</p>
+            <p className="text-xl font-bold text-purple-900">
+              ${orderStats.totalAmount.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         // État de chargement
@@ -169,20 +271,40 @@ const ListOrders = ({ orders }) => {
       ) : (
         // Liste des commandes
         <>
-          <div className="space-y-4" aria-label="Liste de vos commandes">
-            {orders.orders.map((order) => (
-              <OrderItem key={order._id} order={order} />
-            ))}
-          </div>
-
-          {totalPages > 1 && (
-            <div className="mt-8">
-              <CustomPagination
-                totalPages={totalPages}
-                currentPage={currentPage}
-                onPageChange={handlePageChange}
-              />
+          {filteredAndSortedOrders.length === 0 ? (
+            <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-md text-center">
+              <p className="text-yellow-800">
+                Aucune commande ne correspond à vos filtres.
+              </p>
+              <button
+                onClick={() => setFilterStatus('all')}
+                className="mt-3 text-blue-600 hover:text-blue-800 underline"
+              >
+                Réinitialiser les filtres
+              </button>
             </div>
+          ) : (
+            <>
+              <div className="space-y-4" aria-label="Liste de vos commandes">
+                {filteredAndSortedOrders.map((order) => (
+                  <OrderItem
+                    key={order._id}
+                    order={order}
+                    deliveryPrice={orders?.deliveryPrice?.[0]?.deliveryPrice}
+                  />
+                ))}
+              </div>
+
+              {totalPages > 1 && filterStatus === 'all' && (
+                <div className="mt-8">
+                  <CustomPagination
+                    totalPages={totalPages}
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              )}
+            </>
           )}
         </>
       )}
