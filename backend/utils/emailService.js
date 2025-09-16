@@ -94,7 +94,7 @@ BuyItNow - © 2025`;
     const emailOptions = {
       from:
         process.env.NODE_ENV === 'production'
-          ? 'noreply@buyitnow.com'
+          ? 'onboarding@resend.dev'
           : 'onboarding@resend.dev',
       to: [email],
       subject: '✉️ Vérifiez votre adresse email - BuyItNow',
