@@ -2,6 +2,7 @@
 
 import { memo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 // Chargement dynamique des composants
 const OrderedProduct = dynamic(() => import('./OrderedProduct'), {
@@ -128,20 +129,7 @@ const OrderItem = memo(({ order, deliveryPrice = 0 }) => {
                 expanded ? 'Réduire les détails' : 'Voir plus de détails'
               }
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className={`h-5 w-5 transition-transform ${expanded ? 'rotate-180' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 9l-7 7-7-7"
-                />
-              </svg>
+              {expanded ? <ChevronUp /> : <ChevronDown />}
             </button>
           </div>
 

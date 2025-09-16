@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ShoppingBaket } from 'lucide-react'; // Icône pour panier vide
 
 // Chargement dynamique des composants
 const OrderItem = dynamic(() => import('./OrderItem'), {
@@ -242,20 +243,7 @@ const ListOrders = ({ orders }) => {
         // Aucune commande
         <div className="flex flex-col items-center p-8 bg-gray-50 rounded-lg border border-gray-200">
           <div className="w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 mb-4">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-8 w-8 text-blue-600"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-              />
-            </svg>
+            <ShoppingBaket />
           </div>
           <h3 className="font-semibold text-lg mb-2">Aucune commande</h3>
           <p className="text-gray-600 text-center mb-4">
