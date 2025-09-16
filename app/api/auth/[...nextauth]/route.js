@@ -7,8 +7,8 @@ import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { captureException } from '@/monitoring/sentry';
 
 /**
- * Configuration NextAuth simplifiée pour 500 visiteurs/jour
- * Authentification par email/mot de passe avec validation Yup
+ * Configuration NextAuth améliorée avec sécurité enterprise
+ * Authentification par email/mot de passe avec anti-bruteforce
  */
 const authOptions = {
   providers: [
@@ -28,13 +28,11 @@ const authOptions = {
           });
 
           if (!validation.isValid) {
-            // Récupérer le premier message d'erreur pour l'afficher
             const firstError = Object.values(validation.errors)[0];
             console.log('Login validation failed:', validation.errors);
             throw new Error(firstError || 'Invalid credentials');
           }
 
-          // Utiliser les données validées et nettoyées
           const { email, password } = validation.data;
 
           // 2. Connexion DB
@@ -42,12 +40,29 @@ const authOptions = {
 
           // 3. Recherche utilisateur avec mot de passe
           const user = await User.findOne({
-            email: email, // Déjà en lowercase grâce à Yup
+            email: email,
           }).select('+password');
 
           if (!user) {
             console.log('Login failed: User not found');
             throw new Error('Invalid email or password');
+          }
+
+          // ✅ AMÉLIORATION: Vérifier si le compte est verrouillé
+          if (user.isLocked()) {
+            const lockUntilFormatted = new Date(user.lockUntil).toLocaleString(
+              'fr-FR',
+            );
+            console.log('Login failed: Account locked for user:', email);
+            throw new Error(
+              `Compte temporairement verrouillé jusqu'à ${lockUntilFormatted}`,
+            );
+          }
+
+          // ✅ AMÉLIORATION: Vérifier si le compte est actif
+          if (!user.isActive) {
+            console.log('Login failed: Account suspended for user:', email);
+            throw new Error("Compte suspendu. Contactez l'administrateur.");
           }
 
           // 4. Vérification du mot de passe
@@ -57,11 +72,28 @@ const authOptions = {
           );
 
           if (!isPasswordValid) {
-            console.log('Login failed: Invalid password');
-            throw new Error('Invalid email or password');
+            console.log('Login failed: Invalid password for user:', email);
+
+            // ✅ AMÉLIORATION: Incrémenter tentatives échouées
+            await user.incrementLoginAttempts();
+
+            const attemptsLeft = Math.max(0, 5 - user.loginAttempts - 1);
+            if (attemptsLeft > 0) {
+              throw new Error(
+                `Mot de passe incorrect. ${attemptsLeft} tentative(s) restante(s).`,
+              );
+            } else {
+              throw new Error(
+                'Trop de tentatives échouées. Compte temporairement verrouillé.',
+              );
+            }
           }
 
-          // 5. Retourner l'utilisateur sans le mot de passe
+          // ✅ AMÉLIORATION: Connexion réussie - Reset tentatives + update lastLogin
+          await user.resetLoginAttempts();
+          console.log('Login successful for user:', email);
+
+          // 5. Retourner l'utilisateur avec tous les champs utiles
           return {
             _id: user._id.toString(),
             name: user.name,
@@ -70,19 +102,28 @@ const authOptions = {
             role: user.role || 'user',
             avatar: user.avatar,
             verified: user.verified || false,
+            isActive: user.isActive,
+            lastLogin: user.lastLogin,
+            createdAt: user.createdAt,
           };
         } catch (error) {
           console.error('Authentication error:', error.message);
 
-          // Capturer seulement les vraies erreurs système (pas les erreurs de validation ou auth)
-          if (
-            !error.message.includes('Invalid email or password') &&
-            !error.message.includes('requis') &&
-            !error.message.includes('caractères') &&
-            !error.message.includes('Format')
-          ) {
+          // Capturer seulement les vraies erreurs système
+          const systemErrors = [
+            'Database connection failed',
+            'Internal server error',
+            'Connection timeout',
+          ];
+
+          const isSystemError = systemErrors.some((sysErr) =>
+            error.message.toLowerCase().includes(sysErr.toLowerCase()),
+          );
+
+          if (isSystemError) {
             captureException(error, {
               tags: { component: 'auth', action: 'login' },
+              extra: { email: credentials?.email },
             });
           }
 
@@ -94,7 +135,7 @@ const authOptions = {
   ],
 
   callbacks: {
-    // Modifier le callback JWT pour ajouter un timestamp
+    // ✅ AMÉLIORATION: Callback JWT enrichi
     jwt: async ({ token, user, trigger }) => {
       if (user) {
         token.user = {
@@ -105,10 +146,30 @@ const authOptions = {
           role: user.role,
           avatar: user.avatar,
           verified: user.verified,
+          isActive: user.isActive,
+          lastLogin: user.lastLogin,
+          createdAt: user.createdAt,
         };
-        // Ajouter un timestamp pour tracker les nouvelles connexions
+
+        // Marquer comme nouvelle connexion
         token.isNewLogin = true;
         token.loginTime = Date.now();
+
+        // ✅ AMÉLIORATION: Mettre à jour lastLogin en base de données
+        try {
+          await dbConnect();
+          await User.findByIdAndUpdate(user._id, {
+            lastLogin: new Date(),
+            $unset: { lockUntil: 1 }, // Nettoyer le verrou
+            loginAttempts: 0,
+          });
+        } catch (error) {
+          console.error('Failed to update lastLogin:', error);
+          captureException(error, {
+            tags: { component: 'auth', action: 'lastLogin-update' },
+            user: { id: user._id, email: user.email },
+          });
+        }
       }
 
       // Marquer que ce n'est plus une nouvelle connexion après 5 secondes
@@ -119,25 +180,30 @@ const authOptions = {
       return token;
     },
 
-    // Modifier le callback session
+    // ✅ AMÉLIORATION: Session enrichie avec plus de données
     session: async ({ session, token }) => {
       if (token?.user) {
-        session.user = token.user;
+        session.user = {
+          ...token.user,
+          // ✅ AJOUT: Informations supplémentaires pour l'interface
+          memberSince: token.user.createdAt,
+          isVerified: token.user.verified,
+          accountStatus: token.user.isActive ? 'active' : 'suspended',
+        };
         session.isNewLogin = token.isNewLogin || false;
       }
       return session;
     },
 
-    // Ajouter un callback redirect
+    // Callback redirect inchangé
     redirect: async ({ url, baseUrl }) => {
-      // S'assurer que les redirections restent sur le même domaine
       if (url.startsWith('/')) return `${baseUrl}${url}`;
       else if (new URL(url).origin === baseUrl) return url;
       return baseUrl;
     },
   },
 
-  // Ajouter des options de cookies explicites
+  // ✅ AMÉLIORATION: Cookies sécurisés avec options étendues
   cookies: {
     sessionToken: {
       name:
@@ -149,11 +215,8 @@ const authOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // Ajout important : domaine explicite
-        // domain:
-        //   process.env.NODE_ENV === 'production'
-        //     ? 'https://buyitnow-client-n15-prv1.vercel.app'
-        //     : undefined,
+        // ✅ AJOUT: Durée de vie du cookie
+        maxAge: 24 * 60 * 60, // 24 heures
       },
     },
   },
@@ -162,6 +225,7 @@ const authOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 24 * 60 * 60, // 24 heures
+    updateAge: 24 * 60 * 60, // Mettre à jour toutes les 24 heures
   },
 
   // Pages personnalisées
@@ -175,8 +239,18 @@ const authOptions = {
 
   // Debug seulement en développement
   debug: process.env.NODE_ENV === 'development',
-  // Ajoutez aussi ceci
   useSecureCookies: process.env.NODE_ENV === 'production',
+
+  // ✅ AJOUT: Events pour tracking
+  events: {
+    async signIn({ user, account, profile, isNewUser }) {
+      console.log(`User signed in: ${user.email}`);
+      // Optionnel: Log analytics ou événements personnalisés
+    },
+    async signOut({ token }) {
+      console.log(`User signed out: ${token?.user?.email}`);
+    },
+  },
 };
 
 // Créer le handler NextAuth

@@ -1,34 +1,68 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
 import { validateRegister } from '@/helpers/validation/schemas/auth';
 import { captureException } from '@/monitoring/sentry';
 
 /**
+ * Service d'email simplifié - À remplacer par votre service réel
+ */
+const sendVerificationEmail = async (email, name, token) => {
+  // En développement, juste un log
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`
+🔗 EMAIL DE VÉRIFICATION:
+📧 To: ${email}
+👤 Name: ${name}
+🔑 Token: ${token}
+🌐 Link: ${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}
+    `);
+    return { success: true };
+  }
+
+  // TODO: Implémenter avec votre service d'email (SendGrid, Nodemailer, etc.)
+  // const verificationUrl = `${process.env.NEXTAUTH_URL}/api/auth/verify-email?token=${token}`;
+  //
+  // return await yourEmailService.send({
+  //   to: email,
+  //   subject: 'Vérifiez votre adresse email',
+  //   template: 'verification',
+  //   data: { name, verificationUrl }
+  // });
+
+  return { success: false, error: 'Email service not configured' };
+};
+
+/**
  * POST /api/auth/register
- * Inscription d'un nouvel utilisateur
+ * Inscription d'un nouvel utilisateur avec vérification email et sécurité renforcée
  */
 export async function POST(req) {
   try {
     // Connexion DB
     await dbConnect();
 
-    // Parser les données
+    // Parser les données avec gestion d'erreur
     let userData;
     try {
       userData = await req.json();
     } catch (error) {
       return NextResponse.json(
-        { success: false, message: 'Invalid request body' },
+        {
+          success: false,
+          message: 'Corps de requête invalide',
+          code: 'INVALID_REQUEST_BODY',
+        },
         { status: 400 },
       );
     }
 
-    // Valider avec Yup
+    // ✅ AMÉLIORATION: Validation des données avec Yup
     const validation = await validateRegister({
-      name: userData.name,
-      email: userData.email?.toLowerCase(),
-      phone: userData.phone,
+      name: userData.name?.trim(),
+      email: userData.email?.toLowerCase()?.trim(),
+      phone: userData.phone?.trim(),
       password: userData.password,
     });
 
@@ -36,27 +70,41 @@ export async function POST(req) {
       return NextResponse.json(
         {
           success: false,
-          message: 'Validation failed',
+          message: 'Données invalides',
           errors: validation.errors,
+          code: 'VALIDATION_FAILED',
         },
         { status: 400 },
       );
     }
 
-    // Vérifier si l'email existe déjà
+    // ✅ AMÉLIORATION: Vérification d'unicité email ET téléphone
     const existingUser = await User.findOne({
-      email: validation.data.email,
+      $or: [{ email: validation.data.email }, { phone: validation.data.phone }],
     });
 
     if (existingUser) {
-      console.log('Registration attempt with existing email');
+      const field =
+        existingUser.email === validation.data.email ? 'email' : 'téléphone';
+      console.log(
+        `Registration attempt with existing ${field}:`,
+        validation.data.email,
+      );
+
       return NextResponse.json(
-        { success: false, message: 'Email already registered' },
+        {
+          success: false,
+          message: `Ce ${field} est déjà utilisé`,
+          code: 'DUPLICATE_' + field.toUpperCase(),
+        },
         { status: 400 },
       );
     }
 
-    // Créer l'utilisateur
+    // ✅ AMÉLIORATION: Génération token de vérification sécurisé
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // ✅ AMÉLIORATION: Créer l'utilisateur avec tous les champs appropriés
     const user = await User.create({
       name: validation.data.name,
       email: validation.data.email,
@@ -65,48 +113,158 @@ export async function POST(req) {
       role: 'user',
       isActive: true,
       verified: false,
+      verificationToken,
+      avatar: {
+        public_id: null,
+        url: null,
+      },
+      // Les autres champs sont auto-initialisés par le modèle :
+      // loginAttempts: 0 (défaut)
+      // lockUntil: null (défaut)
+      // lastLogin: null (défaut)
+      // passwordChangedAt: null (défaut)
+      // resetPasswordToken: undefined (défaut)
+      // resetPasswordExpire: undefined (défaut)
+      // createdAt: Date.now() (défaut)
+      // updatedAt: Date.now() (défaut)
     });
 
-    console.log('User registered successfully:', user.email);
+    console.log('✅ User registered successfully:', {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      verified: user.verified,
+    });
 
-    // Réponse sans données sensibles
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Registration successful',
-        data: {
-          user: {
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-          },
+    // ✅ AMÉLIORATION: Envoyer email de vérification avec gestion d'erreur non bloquante
+    let emailSent = false;
+    let emailError = null;
+
+    try {
+      const emailResult = await sendVerificationEmail(
+        user.email,
+        user.name,
+        verificationToken,
+      );
+
+      if (emailResult.success) {
+        emailSent = true;
+        console.log('📧 Verification email sent successfully to:', user.email);
+      } else {
+        emailError = emailResult.error;
+        console.warn(
+          '⚠️ Failed to send verification email:',
+          emailResult.error,
+        );
+      }
+    } catch (error) {
+      emailError = error.message;
+      console.error('❌ Email service error:', error);
+
+      // Ne pas faire échouer l'inscription si l'email ne part pas
+      captureException(error, {
+        tags: { component: 'email', action: 'verification' },
+        user: { id: user._id, email: user.email },
+        extra: { verificationToken },
+      });
+    }
+
+    // ✅ AMÉLIORATION: Réponse enrichie avec informations complètes
+    const response = {
+      success: true,
+      message: emailSent
+        ? 'Inscription réussie ! Vérifiez votre email pour activer votre compte.'
+        : "Inscription réussie ! Email de vérification en cours d'envoi.",
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role,
+          verified: user.verified,
+          isActive: user.isActive,
+          createdAt: user.createdAt,
+          avatar: user.avatar,
         },
+        emailSent,
+        ...(emailError &&
+          process.env.NODE_ENV === 'development' && {
+            emailError,
+          }),
       },
-      { status: 201 },
-    );
-  } catch (error) {
-    console.error('Registration error:', error.message);
+    };
 
-    // Gestion erreur de duplication MongoDB
+    return NextResponse.json(response, { status: 201 });
+  } catch (error) {
+    console.error('❌ Registration error:', error.message);
+
+    // ✅ AMÉLIORATION: Gestion spécifique des erreurs MongoDB
     if (error.code === 11000) {
+      // Erreur d'index unique
+      const duplicateField = Object.keys(error.keyPattern)[0];
       return NextResponse.json(
-        { success: false, message: 'Email already registered' },
+        {
+          success: false,
+          message: `Ce ${duplicateField === 'email' ? 'email' : 'téléphone'} est déjà utilisé`,
+          code: 'DUPLICATE_' + duplicateField.toUpperCase(),
+        },
         { status: 400 },
       );
     }
 
-    // Capturer seulement les vraies erreurs système
-    if (error.name !== 'ValidationError') {
-      captureException(error, {
-        tags: { component: 'api', route: 'auth/register' },
+    // ✅ AMÉLIORATION: Gestion des erreurs de validation Mongoose
+    if (error.name === 'ValidationError') {
+      const validationErrors = {};
+      Object.keys(error.errors).forEach((key) => {
+        validationErrors[key] = error.errors[key].message;
       });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Erreurs de validation',
+          errors: validationErrors,
+          code: 'MODEL_VALIDATION_ERROR',
+        },
+        { status: 400 },
+      );
     }
+
+    // ✅ AMÉLIORATION: Gestion des erreurs de connexion DB
+    if (error.message.includes('connection')) {
+      captureException(error, {
+        tags: { component: 'database', route: 'auth/register' },
+        level: 'error',
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Erreur de connexion. Veuillez réessayer.',
+          code: 'DATABASE_CONNECTION_ERROR',
+        },
+        { status: 503 }, // Service Unavailable
+      );
+    }
+
+    // Capturer toutes les autres erreurs système
+    captureException(error, {
+      tags: { component: 'api', route: 'auth/register' },
+      extra: {
+        userData: {
+          email: userData?.email,
+          name: userData?.name,
+          phone: userData?.phone,
+        },
+      },
+    });
 
     return NextResponse.json(
       {
         success: false,
-        message: 'Registration failed. Please try again.',
+        message: "Erreur lors de l'inscription. Veuillez réessayer.",
+        code: 'INTERNAL_SERVER_ERROR',
       },
       { status: 500 },
     );
