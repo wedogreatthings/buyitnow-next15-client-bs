@@ -60,12 +60,10 @@ const productSchema = new mongoose.Schema(
     },
     sold: {
       type: Number,
-      default: 0,
       min: 0,
     },
     isActive: {
       type: Boolean,
-      default: true,
       index: true,
     },
     createdAt: {
