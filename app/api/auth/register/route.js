@@ -4,7 +4,7 @@ import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
 import { validateRegister } from '@/helpers/validation/schemas/auth';
 import { captureException } from '@/monitoring/sentry';
-import { sendVerificationEmail } from '@/utils/emailService'; // ✅ Import du vrai service
+import { sendVerificationEmail } from '@/backend/utils/emailService';
 
 /**
  * POST /api/auth/register

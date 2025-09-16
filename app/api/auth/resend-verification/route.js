@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
-import { sendVerificationEmail } from '@/utils/emailService';
 import { captureException } from '@/monitoring/sentry';
+import { sendVerificationEmail } from '@/backend/utils/emailService';
 
 /**
  * POST /api/auth/resend-verification
