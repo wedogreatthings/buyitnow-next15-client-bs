@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 
 import AuthContext from '@/context/AuthContext';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 // import { addressSchema } from '@/helpers/schemas';
 
 /**
@@ -46,6 +48,9 @@ const NewAddress = ({ userId, referer }) => {
   const [validationErrors, setValidationErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formTouched, setFormTouched] = useState(false);
+
+  // Dans le composant NewAddress, ajouter cette ligne après les autres hooks
+  const router = useRouter();
 
   // Focus first field on component mount
   useEffect(() => {
@@ -92,25 +97,10 @@ const NewAddress = ({ userId, referer }) => {
     }
   }, []);
 
-  // Validate form against schema
-  // const validateForm = useCallback(async () => {
-  //   try {
-  //     await addressSchema.validate(formState, { abortEarly: false });
-  //     setValidationErrors({});
-  //     return true;
-  //   } catch (err) {
-  //     const errors = {};
-  //     if (err.inner) {
-  //       err.inner.forEach((error) => {
-  //         errors[error.path] = error.message;
-  //       });
-  //     } else {
-  //       errors.general = err.message;
-  //     }
-  //     setValidationErrors(errors);
-  //     return false;
-  //   }
-  // }, [formState]);
+  // Ajouter cette fonction de gestion du retour
+  const handleGoBack = () => {
+    router.back(); // ou router.push('/me') si vous voulez forcer le retour à /me
+  };
 
   // Submit handler with validation
   const submitHandler = async (e) => {
@@ -119,15 +109,6 @@ const NewAddress = ({ userId, referer }) => {
     setIsSubmitting(true);
 
     try {
-      // Validate all fields
-      // const isValid = await validateForm();
-
-      // if (!isValid) {
-      //   toast.error('Veuillez corriger les erreurs dans le formulaire');
-      //   setIsSubmitting(false);
-      //   return;
-      // }
-
       // Additional custom validations
       if (formState.zipCode && !/^\d{2,5}$/.test(formState.zipCode)) {
         setValidationErrors((prev) => ({
@@ -198,6 +179,19 @@ const NewAddress = ({ userId, referer }) => {
               className="mt-1 mb-8 p-4 md:p-7 mx-auto rounded-lg bg-white shadow-lg"
               style={{ maxWidth: '480px' }}
             >
+              {/* NOUVEAU : Bouton de retour */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  aria-label="Retourner à la page précédente"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </button>
+              </div>
+
               <form
                 ref={formRef}
                 onSubmit={submitHandler}
