@@ -5,7 +5,8 @@ import { toast } from 'react-toastify';
 import DOMPurify from 'dompurify';
 
 import AuthContext from '@/context/AuthContext';
-import { Check, CircleSlash2, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Check, CircleSlash2, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 // import { validatePasswordUpdate } from '@/helpers/schemas';
 
 /**
@@ -40,6 +41,9 @@ const UpdatePassword = ({ userId, referer }) => {
     new: false,
     confirm: false,
   });
+
+  // Dans le composant UpdatePassword, ajouter cette ligne après les autres hooks
+  const router = useRouter();
 
   // Focus au chargement
   useEffect(() => {
@@ -191,6 +195,11 @@ const UpdatePassword = ({ userId, referer }) => {
     return { label: 'Fort', color: 'bg-green-500' };
   }, [passwordStrength]);
 
+  // Ajouter cette fonction de gestion du retour
+  const handleGoBack = () => {
+    router.back(); // ou router.push('/me') si vous voulez forcer le retour à /me
+  };
+
   // Fonction de soumission du formulaire
   const submitHandler = async (e) => {
     e.preventDefault();
@@ -260,6 +269,19 @@ const UpdatePassword = ({ userId, referer }) => {
 
   return (
     <div className="mb-8 p-4 md:p-7 mx-auto rounded-lg bg-white shadow-lg">
+      {/* NOUVEAU : Bouton de retour */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+          aria-label="Retourner à la page précédente"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Retour
+        </button>
+      </div>
+
       <form
         ref={formRef}
         onSubmit={submitHandler}

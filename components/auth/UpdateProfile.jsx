@@ -8,6 +8,8 @@ import DOMPurify from 'dompurify';
 import AuthContext from '@/context/AuthContext';
 // import { validateProfileWithLogging } from '@/helpers/schemas';
 import { captureException } from '@/monitoring/sentry';
+import { ArrowLeft } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 /**
  * Composant de mise à jour de profil utilisateur sécurisé et optimisé
@@ -37,6 +39,9 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadInProgress, setUploadInProgress] = useState(false);
   const [formTouched, setFormTouched] = useState(false);
+
+  // Dans le composant UpdateProfile, ajouter cette ligne après les autres hooks
+  const router = useRouter();
 
   // Initialisation des données du formulaire avec useEffect
   useEffect(() => {
@@ -140,6 +145,11 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
     setUploadInProgress(true);
   }, []);
 
+  // Ajouter cette fonction de gestion du retour
+  const handleGoBack = () => {
+    router.back(); // ou router.push('/me') si vous voulez forcer le retour à /me
+  };
+
   // Soumission du formulaire avec validation améliorée
   const submitHandler = async (e) => {
     e.preventDefault();
@@ -156,23 +166,6 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
 
       // Extraire les données du formulaire
       const { name, phone, avatar } = formState;
-
-      // Validation avancée avec la nouvelle fonction
-      // const validation = await validateProfileWithLogging({
-      //   name,
-      //   phone,
-      //   avatar,
-      // });
-
-      // if (!validation.isValid) {
-      //   setValidationErrors(validation.errors);
-      //   toast.error(
-      //     validation.errors.general ||
-      //       'Veuillez corriger les erreurs dans le formulaire',
-      //   );
-      //   setIsSubmitting(false);
-      //   return;
-      // }
 
       // Appeler la fonction de mise à jour avec données validées
       // await updateProfile(validation.data);
@@ -226,6 +219,19 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
 
   return (
     <div className="mb-8 p-4 md:p-7 mx-auto rounded-lg bg-white shadow-lg max-w-lg">
+      {/* NOUVEAU : Bouton de retour */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+          aria-label="Retourner à la page précédente"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Retour
+        </button>
+      </div>
+
       <form
         ref={formRef}
         onSubmit={submitHandler}
@@ -235,6 +241,7 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
       >
         <h2 className="mb-5 text-2xl font-semibold">Modifier votre profil</h2>
 
+        {/* Le reste du formulaire reste identique */}
         {/* Email en lecture seule */}
         {initialEmail && (
           <div className="mb-4">

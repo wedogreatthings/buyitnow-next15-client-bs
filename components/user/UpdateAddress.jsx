@@ -7,6 +7,7 @@ import DOMPurify from 'dompurify';
 import { useRouter } from 'next/navigation';
 
 import AuthContext from '@/context/AuthContext';
+import { ArrowLeft } from 'lucide-react';
 // import { addressSchema } from '@/helpers/schemas';
 
 /**
@@ -121,25 +122,10 @@ const UpdateAddress = ({ id, address, userId, referer }) => {
     }
   }, []);
 
-  // Validate form against schema
-  // const validateForm = useCallback(async () => {
-  //   try {
-  //     await addressSchema.validate(formState, { abortEarly: false });
-  //     setValidationErrors({});
-  //     return true;
-  //   } catch (err) {
-  //     const errors = {};
-  //     if (err.inner) {
-  //       err.inner.forEach((error) => {
-  //         errors[error.path] = error.message;
-  //       });
-  //     } else {
-  //       errors.general = err.message;
-  //     }
-  //     setValidationErrors(errors);
-  //     return false;
-  //   }
-  // }, [formState]);
+  // Dans le composant UpdateAddress, ajouter cette fonction de gestion du retour après les autres fonctions
+  const handleGoBack = () => {
+    router.back(); // ou router.push('/me') si vous voulez forcer le retour à /me
+  };
 
   // Submit handler with validation
   const submitHandler = async (e) => {
@@ -148,15 +134,6 @@ const UpdateAddress = ({ id, address, userId, referer }) => {
     setIsSubmitting(true);
 
     try {
-      // Validate all fields
-      // const isValid = await validateForm();
-
-      // if (!isValid) {
-      //   toast.error('Veuillez corriger les erreurs dans le formulaire');
-      //   setIsSubmitting(false);
-      //   return;
-      // }
-
       // Additional custom validations for zipCode (optional field, min 2 digits if present)
       if (formState.zipCode && !/^\d{2,5}$/.test(formState.zipCode)) {
         setValidationErrors((prev) => ({
@@ -259,6 +236,19 @@ const UpdateAddress = ({ id, address, userId, referer }) => {
         <div className="flex flex-col md:flex-row">
           <main className="md:w-2/3 lg:w-3/4 px-4 mx-auto w-full">
             <div className="mb-8 p-4 md:p-7 mx-auto rounded-lg bg-white shadow-lg">
+              {/* NOUVEAU : Bouton de retour */}
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  aria-label="Retourner à la page précédente"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Retour
+                </button>
+              </div>
+
               <form
                 ref={formRef}
                 onSubmit={submitHandler}
