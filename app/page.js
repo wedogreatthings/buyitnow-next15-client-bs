@@ -198,8 +198,6 @@ const getCategories = async () => {
 
     const categories = responseBody.data.categories || [];
 
-    console.log('Fetched categories:', categories);
-
     return {
       success: true,
       message: 'Catégories récupérées avec succès',
@@ -236,6 +234,8 @@ const HomePage = async ({ searchParams }) => {
   const categories = await getCategories().catch(() => ({
     categories: [],
   }));
+
+  console.log('Categories data in HomePage:', categories);
 
   return (
     <Suspense fallback={<ListProductsSkeleton />}>

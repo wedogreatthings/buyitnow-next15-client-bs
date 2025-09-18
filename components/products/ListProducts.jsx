@@ -28,6 +28,7 @@ const ProductItem = dynamic(() => import('./ProductItem'), {
 });
 
 const ListProducts = ({ data, categories }) => {
+  console.log('ListProducts categories prop:', categories);
   // États locaux
   const [localLoading, setLocalLoading] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);

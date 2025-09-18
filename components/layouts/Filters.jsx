@@ -7,6 +7,7 @@ import { getPriceQueryParams, isArrayEmpty } from '@/helpers/helpers';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const Filters = ({ categories, setLocalLoading }) => {
+  console.log('Filters categories prop:', categories);
   const router = useRouter();
   const searchParams = useSearchParams();
 
