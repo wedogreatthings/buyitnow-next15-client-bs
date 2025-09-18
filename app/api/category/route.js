@@ -24,6 +24,8 @@ export async function GET() {
       'CDN-Cache-Control': 'max-age=3600', // 1h pour CDN si utilisé
     };
 
+    console.log('Retrieved categories in api:', categories);
+
     return NextResponse.json(
       {
         success: true,
