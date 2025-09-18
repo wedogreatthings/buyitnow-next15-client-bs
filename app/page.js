@@ -198,6 +198,8 @@ const getCategories = async () => {
 
     const categories = responseBody.data.categories || [];
 
+    console.log('Fetched categories:', categories);
+
     return {
       success: true,
       message: 'Catégories récupérées avec succès',
