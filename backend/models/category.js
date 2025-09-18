@@ -28,20 +28,20 @@ const categorySchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
-    isActive: {
-      type: Boolean,
-      default: true,
-      index: true,
-    },
+    // isActive: {
+    //   type: Boolean,
+    //   default: true,
+    //   index: true,
+    // },
     createdAt: {
       type: Date,
       default: Date.now,
       index: true,
     },
-    updatedAt: {
-      type: Date,
-      default: Date.now,
-    },
+    // updatedAt: {
+    //   type: Date,
+    //   default: Date.now,
+    // },
   },
   {
     timestamps: true,
@@ -61,10 +61,10 @@ categorySchema.index({ categoryName: 'text' });
 // });
 
 // Middleware pre-save pour mettre à jour le champ updatedAt
-categorySchema.pre('save', function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
+// categorySchema.pre('save', function (next) {
+//   this.updatedAt = Date.now();
+//   next();
+// });
 
 // Assurer que les modèles ne sont pas redéfinis en cas de hot-reload
 const Category =
