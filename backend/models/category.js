@@ -30,7 +30,6 @@ const categorySchema = new mongoose.Schema(
     },
     isActive: {
       type: Boolean,
-      default: true,
       index: true,
     },
     createdAt: {
