@@ -13,7 +13,7 @@ export async function GET() {
     await dbConnect();
 
     // Récupérer les catégories actives
-    const categories = await Category.find({ isActive: true })
+    const categories = await Category.find()
       .select('categoryName')
       .sort({ categoryName: 1 })
       .lean();
