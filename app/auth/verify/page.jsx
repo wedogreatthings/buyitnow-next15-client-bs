@@ -1,9 +1,6 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-// SUPPRIMER CES IMPORTS
-// import { getServerSession } from 'next-auth';
-// import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 // AJOUTER CET IMPORT
 import { getAuthenticatedUser } from '@/lib/auth';
@@ -25,13 +22,6 @@ export const metadata = {
  */
 async function VerifyEmailContent() {
   try {
-    // REMPLACER CETTE PARTIE :
-    // const session = await getServerSession(authOptions);
-    // if (!session || !session.user) {
-    //   redirect('/login?callbackUrl=/auth/verify');
-    // }
-    // const user = session.user;
-
     // PAR CECI :
     const headersList = await headers();
     const user = await getAuthenticatedUser(headersList);
@@ -51,9 +41,6 @@ async function VerifyEmailContent() {
       redirect('/?message=already_verified');
     }
 
-    // Récupérer les en-têtes pour le logging
-    // SUPPRIMER CETTE LIGNE CAR headersList EST DÉJÀ DÉFINI :
-    // const headersList = await headers();
     const userAgent = headersList.get('user-agent') || 'unknown';
     const referer = headersList.get('referer') || 'direct';
 

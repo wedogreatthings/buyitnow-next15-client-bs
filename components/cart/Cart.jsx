@@ -59,16 +59,13 @@ const Cart = () => {
   // Précharger la page de livraison
   useEffect(() => {
     router.prefetch('/shipping-choice');
+    let isMounted = true; // Ajouter un flag de montage
 
-    // Chargement initial du panier - OPTIMISÉ
     const loadCart = async () => {
-      // Vérifier si on est déjà en train de charger le panier
-      if (isLoadingCart.current) return;
+      if (isLoadingCart.current || !isMounted) return; // Vérifier isMounted
 
       try {
-        // Marquer comme en cours de chargement
         isLoadingCart.current = true;
-
         await setCartToState();
       } catch (error) {
         console.error('Erreur lors du chargement du panier:', error);
@@ -77,17 +74,22 @@ const Cart = () => {
         });
         toast.error('Impossible de charger votre panier. Veuillez réessayer.');
       } finally {
-        // Important: marquer comme terminé même en cas d'erreur
-        isLoadingCart.current = false;
-        setInitialLoadComplete(true);
+        if (isMounted) {
+          // Vérifier avant de mettre à jour l'état
+          isLoadingCart.current = false;
+          setInitialLoadComplete(true);
+        }
       }
     };
 
-    // Ne charger qu'une seule fois au montage du composant
     if (!initialLoadComplete && !isLoadingCart.current) {
       loadCart();
     }
-  }, [router, setCartToState, initialLoadComplete]);
+
+    return () => {
+      isMounted = false; // Cleanup
+    };
+  }, [setCartToState, initialLoadComplete]);
 
   // Afficher un écran de chargement pendant le chargement initial
   if (!initialLoadComplete) {

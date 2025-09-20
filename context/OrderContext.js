@@ -18,7 +18,25 @@ export const OrderProvider = ({ children }) => {
   const [shippingStatus, setShippingStatus] = useState(true);
   const [deliveryPrice, setDeliveryPrice] = useState(0);
 
+  const [checkoutInfo, setCheckoutInfo] = useState(null);
+  const [orderInfo, setOrderInfo] = useState(null);
+
   const router = useRouter();
+
+  // Méthodes simples déjà OK
+  const saveOnCheckout = ({ cart, amount, tax = 0, totalAmount }) => {
+    const validAmount = parseFloat(amount) || 0;
+    const validTax = parseFloat(tax) || 0;
+    const validTotal = parseFloat(totalAmount) || validAmount + validTax;
+
+    setCheckoutInfo({
+      amount: validAmount,
+      tax: validTax,
+      totalAmount: validTotal,
+      items: cart,
+      timestamp: Date.now(),
+    });
+  };
 
   const addOrder = async (orderInfo) => {
     try {
@@ -132,11 +150,15 @@ export const OrderProvider = ({ children }) => {
         shippingInfo,
         shippingStatus,
         deliveryPrice,
+        checkoutInfo,
+        orderInfo,
         setPaymentTypes,
         setAddresses,
         setShippinInfo,
         setShippingStatus,
         setDeliveryPrice,
+        setOrderInfo,
+        saveOnCheckout,
         addOrder,
         setUpdated,
         clearErrors,

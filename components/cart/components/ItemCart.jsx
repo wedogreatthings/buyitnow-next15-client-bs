@@ -13,7 +13,6 @@ const ItemCart = memo(
     increaseQty,
     deleteInProgress,
   }) => {
-    const [totalPrice, setTotalPrice] = useState(0);
     const [isStockLow, setIsStockLow] = useState(false);
     const [isOutOfStock, setIsOutOfStock] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -22,7 +21,6 @@ const ItemCart = memo(
 
     useEffect(() => {
       // Calculs pour l'affichage
-      setTotalPrice(cartItem?.subtotal);
       setIsStockLow(cartItem?.stock <= 5 && cartItem?.stock > 0);
       setIsOutOfStock(cartItem?.stock === 0);
     }, [cartItem]);
@@ -150,7 +148,7 @@ const ItemCart = memo(
 
           <div className="flex flex-col items-start sm:items-end ml-auto">
             <div className="text-blue-600 font-medium text-base sm:text-lg">
-              {formatPrice(totalPrice)}
+              {formatPrice(cartItem?.subtotal)}
             </div>
             <div className="text-gray-500 text-sm">
               {formatPrice(cartItem?.price)} l&apos;unité

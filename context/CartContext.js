@@ -11,8 +11,6 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [cartCount, setCartCount] = useState(0);
   const [cartTotal, setCartTotal] = useState(0);
-  const [checkoutInfo, setCheckoutInfo] = useState(null);
-  const [orderInfo, setOrderInfo] = useState(null);
   const [error, setError] = useState(null);
 
   // Récupérer le panier - SIMPLIFIÉ (30 lignes max)
@@ -236,21 +234,6 @@ export const CartProvider = ({ children }) => {
     }
   };
 
-  // Méthodes simples déjà OK
-  const saveOnCheckout = ({ amount, tax = 0, totalAmount }) => {
-    const validAmount = parseFloat(amount) || 0;
-    const validTax = parseFloat(tax) || 0;
-    const validTotal = parseFloat(totalAmount) || validAmount + validTax;
-
-    setCheckoutInfo({
-      amount: validAmount,
-      tax: validTax,
-      totalAmount: validTotal,
-      items: cart,
-      timestamp: Date.now(),
-    });
-  };
-
   const clearError = () => {
     setError(null);
   };
@@ -281,19 +264,15 @@ export const CartProvider = ({ children }) => {
       cart,
       cartCount,
       cartTotal,
-      checkoutInfo,
-      orderInfo,
       error,
       setCartToState,
-      setOrderInfo,
       addItemToCart,
       updateCart,
-      saveOnCheckout,
       deleteItemFromCart,
       clearError,
       clearCartOnLogout,
     }),
-    [loading, cart, cartCount, cartTotal, checkoutInfo, orderInfo, error],
+    [loading, cart, cartCount, cartTotal, error],
   );
 
   return (

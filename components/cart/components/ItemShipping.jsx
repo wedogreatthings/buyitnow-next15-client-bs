@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatPrice } from '@/helpers/helpers';
@@ -20,16 +20,13 @@ const ItemShipping = memo(({ item }) => {
   const productName = item?.productName || 'Produit sans nom';
 
   // Calcul du total avec gestion des types et valeurs manquantes
-  const calculateTotal = () => {
+  const total = useMemo(() => {
     if (typeof item?.subtotal === 'number') {
       return item.subtotal;
     }
-
     const price = typeof item?.price === 'number' ? item.price : 0;
     return quantity * price;
-  };
-
-  const total = calculateTotal();
+  }, [item?.subtotal, item?.price, quantity]);
 
   // Source de l'image avec gestion des erreurs
   const imageSrc =

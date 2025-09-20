@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 
 import AuthContext from '@/context/AuthContext';
 import { ArrowLeft } from 'lucide-react';
-// import { addressSchema } from '@/helpers/schemas';
 
 /**
  * UpdateAddress component for managing address modification and deletion

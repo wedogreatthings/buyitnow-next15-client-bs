@@ -7,6 +7,7 @@ import {
   useCallback,
   useMemo,
   memo,
+  useRef,
 } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -53,11 +54,18 @@ CartItemSkeleton.displayName = 'CartItemSkeleton';
  */
 const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [dataInitialized, setDataInitialized] = useState(false);
+  const initialized = useRef(false);
+  const hasRedirected = useRef(false);
 
-  const { cart, checkoutInfo, setOrderInfo } = useContext(CartContext);
-  const { setAddresses, setPaymentTypes, setShippingStatus, setDeliveryPrice } =
-    useContext(OrderContext);
+  const { cart } = useContext(CartContext);
+  const {
+    checkoutInfo,
+    setOrderInfo,
+    setAddresses,
+    setPaymentTypes,
+    setShippingStatus,
+    setDeliveryPrice,
+  } = useContext(OrderContext);
 
   const router = useRouter();
 
@@ -80,20 +88,22 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
         // Préchargement des pages pour navigation rapide
         router.prefetch('/payment');
         router.prefetch('/shipping');
+        router.prefetch('/me');
 
-        // Validation des données
-        if (isArrayEmpty(addresses)) {
-          toast.error(
-            'Vous devez compléter votre profil et ajouter une adresse',
-          );
-          return router.push('/me');
+        if (isArrayEmpty(addresses) && !hasRedirected.current) {
+          hasRedirected.current = true;
+          toast.error('Veuillez ajouter une adresse avant de continuer.');
+          router.push('/me');
+          return;
         }
 
-        if (isArrayEmpty(payments)) {
+        if (isArrayEmpty(payments) && !hasRedirected.current) {
+          hasRedirected.current = true;
           toast.error(
             "Aucun moyen de paiement n'est disponible pour le moment. Veuillez réessayer plus tard.",
           );
-          return router.push('/cart');
+          router.push('/cart');
+          return;
         }
 
         // Stockage des données dans le contexte de commande
@@ -107,8 +117,6 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
         // Préparation des éléments de commande
         const orderItems = prepareOrderItems();
         setOrderInfo({ orderItems });
-
-        setDataInitialized(true);
       } catch (error) {
         console.error(
           "Erreur lors de l'initialisation des données de livraison:",
@@ -126,10 +134,11 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
       }
     };
 
-    if (!dataInitialized) {
+    if (!initialized.current) {
+      initialized.current = true;
       initializeData();
     }
-  }, [addresses, payments, deliveryPrice, cart, dataInitialized]);
+  }, []);
 
   // Fonction pour préparer les éléments de commande
   const prepareOrderItems = useCallback(() => {
