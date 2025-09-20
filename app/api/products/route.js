@@ -48,13 +48,17 @@ export async function GET(req) {
     // Configuration de la pagination
     const resPerPage = Math.min(MAX_PER_PAGE, Math.max(1, DEFAULT_PER_PAGE));
 
+    // Au lieu de Product.find()
+    const baseQuery = Product.find({ isActive: true })
+      .populate({
+        path: 'category',
+        match: { isActive: true },
+      })
+      .select('name description stock price images category')
+      .slice('images', 1);
+
     // Créer les filtres avec les paramètres validés
-    const apiFilters = new APIFilters(
-      Product.find({ isActive: true })
-        .select('name description stock price images category')
-        .slice('images', 1),
-      searchParams,
-    )
+    const apiFilters = new APIFilters(baseQuery, searchParams)
       .search()
       .filter();
 
@@ -68,9 +72,7 @@ export async function GET(req) {
     apiFilters.pagination(resPerPage);
 
     // Récupérer les produits
-    const products = await apiFilters.query
-      .populate('category', 'categoryName')
-      .lean();
+    const products = await apiFilters.query;
 
     // Calculer les métadonnées
     const totalPages = Math.ceil(filteredProductsCount / resPerPage);
