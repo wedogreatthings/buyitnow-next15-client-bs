@@ -235,8 +235,6 @@ const HomePage = async ({ searchParams }) => {
     categories: [],
   }));
 
-  console.log('Categories data in HomePage:', categories);
-
   return (
     <Suspense fallback={<ListProductsSkeleton />}>
       <main>

@@ -1,8 +1,12 @@
 import { Suspense } from 'react';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+// SUPPRIMER CES IMPORTS
+// import { getServerSession } from 'next-auth';
+// import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
+// AJOUTER CET IMPORT
+import { getAuthenticatedUser } from '@/lib/auth';
 import VerifyEmail from '@/components/auth/VerifyEmail';
 
 // Métadonnées pour SEO
@@ -21,16 +25,22 @@ export const metadata = {
  */
 async function VerifyEmailContent() {
   try {
-    // Récupérer la session utilisateur
-    const session = await getServerSession(authOptions);
+    // REMPLACER CETTE PARTIE :
+    // const session = await getServerSession(authOptions);
+    // if (!session || !session.user) {
+    //   redirect('/login?callbackUrl=/auth/verify');
+    // }
+    // const user = session.user;
+
+    // PAR CECI :
+    const headersList = await headers();
+    const user = await getAuthenticatedUser(headersList);
 
     // Rediriger si l'utilisateur n'est pas connecté
-    if (!session || !session.user) {
+    if (!user) {
       console.log('User not authenticated, redirecting to login');
       redirect('/login?callbackUrl=/auth/verify');
     }
-
-    const user = session.user;
 
     // Vérifier si l'utilisateur est déjà vérifié
     const isAlreadyVerified =
@@ -42,7 +52,8 @@ async function VerifyEmailContent() {
     }
 
     // Récupérer les en-têtes pour le logging
-    const headersList = await headers();
+    // SUPPRIMER CETTE LIGNE CAR headersList EST DÉJÀ DÉFINI :
+    // const headersList = await headers();
     const userAgent = headersList.get('user-agent') || 'unknown';
     const referer = headersList.get('referer') || 'direct';
 
@@ -95,14 +106,14 @@ async function VerifyEmailContent() {
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="text-center">
             <p className="text-xs text-gray-500 mb-2">
-              Vous ne recevez pas l'email de vérification ?
+              Vous ne recevez pas l&apos;email de vérification ?
             </p>
             <div className="space-y-1">
               <p className="text-xs text-gray-400">
                 • Vérifiez votre dossier spam/courrier indésirable
               </p>
               <p className="text-xs text-gray-400">
-                • L'email peut prendre quelques minutes à arriver
+                • L&apos;email peut prendre quelques minutes à arriver
               </p>
               <p className="text-xs text-gray-400">
                 • Contactez-nous si le problème persiste
