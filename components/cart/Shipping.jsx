@@ -55,18 +55,17 @@ const Shipping = ({ initialData }) => {
   // États locaux
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState(null);
-  const [dataInitialized, setDataInitialized] = useState(false);
-  const [addressList, setAddressList] = useState([]);
-  const addressesRef = useRef([]);
+  const initialized = useRef(false);
 
   // Contextes
-  const { cart, checkoutInfo } = useContext(CartContext);
+  const { cart } = useContext(CartContext);
   const {
     addresses,
     paymentTypes,
     shippingInfo,
     deliveryPrice,
-    setShippinInfo,
+    checkoutInfo,
+    setShippingInfo,
     setAddresses,
     setPaymentTypes,
   } = useContext(OrderContext);
@@ -129,16 +128,10 @@ const Shipping = ({ initialData }) => {
           setPaymentTypes(paymentData);
         }
 
-        // Stocker les adresses localement pour éviter les re-renders inutiles
-        addressesRef.current = addressData || [];
-        setAddressList(addressData || []);
-
         // Restaurer l'adresse sélectionnée précédemment si elle existe
         if (shippingInfo) {
           setSelectedAddress(shippingInfo);
         }
-
-        setDataInitialized(true);
       } catch (error) {
         console.error(
           "Erreur lors de l'initialisation des données de livraison:",
@@ -155,10 +148,11 @@ const Shipping = ({ initialData }) => {
       }
     };
 
-    if (!dataInitialized) {
+    if (!initialized.current) {
+      initialized.current = true;
       initializeData();
     }
-  }, [shippingInfo, dataInitialized]);
+  }, []);
 
   // 2. Remplacer la fonction handleAddressSelection par ceci :
   const handleAddressSelection = useCallback(
@@ -171,7 +165,7 @@ const Shipping = ({ initialData }) => {
 
         if (isValid) {
           setSelectedAddress(addressId);
-          setShippinInfo(addressId);
+          setShippingInfo(addressId);
 
           // Feedback positif optionnel
           toast.success('Adresse de livraison sélectionnée', {
@@ -195,14 +189,14 @@ const Shipping = ({ initialData }) => {
 
         // Comportement dégradé: accepter la sélection même en cas d'erreur
         setSelectedAddress(addressId);
-        setShippinInfo(addressId);
+        setShippingInfo(addressId);
 
         toast.error('Erreur de validation, mais adresse sélectionnée', {
           position: 'bottom-right',
         });
       }
     },
-    [setShippinInfo],
+    [setShippingInfo],
   );
 
   // Gérer le passage au paiement
@@ -271,11 +265,11 @@ const Shipping = ({ initialData }) => {
                   Adresse de livraison
                 </h2>
 
-                {addressList.length === 0 ? (
+                {addresses.length === 0 ? (
                   <NoAddressesFound />
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                    {addressList.map((address) => (
+                    {addresses.map((address) => (
                       <AddressCard
                         key={address._id}
                         address={address}

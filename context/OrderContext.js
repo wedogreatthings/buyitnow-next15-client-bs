@@ -14,7 +14,7 @@ export const OrderProvider = ({ children }) => {
   // États pour les autres parties de l'app (shipping, etc.)
   const [paymentTypes, setPaymentTypes] = useState([]);
   const [addresses, setAddresses] = useState([]);
-  const [shippingInfo, setShippinInfo] = useState(null);
+  const [shippingInfo, setShippingInfo] = useState(null);
   const [shippingStatus, setShippingStatus] = useState(true);
   const [deliveryPrice, setDeliveryPrice] = useState(0);
 
@@ -154,7 +154,7 @@ export const OrderProvider = ({ children }) => {
         orderInfo,
         setPaymentTypes,
         setAddresses,
-        setShippinInfo,
+        setShippingInfo,
         setShippingStatus,
         setDeliveryPrice,
         setOrderInfo,
