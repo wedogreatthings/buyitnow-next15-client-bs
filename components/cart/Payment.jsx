@@ -60,10 +60,12 @@ const Payment = () => {
   const submitAttempts = useRef(0);
 
   // Contextes
-  const { checkoutInfo, orderInfo, setOrderInfo, cart } =
-    useContext(CartContext);
+  const { cart } = useContext(CartContext);
 
   const {
+    checkoutInfo,
+    orderInfo,
+    setOrderInfo,
     addOrder,
     paymentTypes,
     shippingInfo,
