@@ -211,7 +211,11 @@ const Payment = () => {
     }
 
     // Validation selon le type de compte
+    // Nettoyer le numéro (enlever espaces, tirets, etc.)
     const cleanNumber = accountNumber.replace(/\D/g, '');
+
+    // Validation selon le type de numéro
+    let validationPassed = false;
 
     // Si c'est un numéro djiboutien (77XXXXXX)
     if (cleanNumber.match(/^77[0-9]{6}$/)) {
@@ -220,26 +224,65 @@ const Payment = () => {
         accountName,
         cleanNumber,
       );
-      return await validateDjiboutiPayment(paymentData);
-    }
 
-    // Pour tous les autres types
-    if (cleanNumber.length < 4 || cleanNumber.length > 30) {
-      return {
-        isValid: false,
-        errors: { accountNumber: 'Numéro invalide (4-30 chiffres)' },
-      };
-    }
+      const validationResult = await validateDjiboutiPayment(paymentData);
 
-    // Vérifications additionnelles selon le type
-    if (paymentType.toLowerCase().includes('bank')) {
-      // Validation IBAN/RIB basique
-      if (cleanNumber.length < 10) {
-        return {
-          isValid: false,
-          errors: { accountNumber: 'Numéro bancaire trop court' },
-        };
+      if (!validationResult.isValid) {
+        const errorMessages = Object.values(validationResult.errors);
+        errorMessages.forEach((msg) => {
+          toast.error(msg, { position: 'bottom-right' });
+        });
+        setIsSubmitting(false);
+        submitAttempts.current = 0;
+        return;
       }
+      validationPassed = true;
+    } else {
+      // Validation pour TOUS les autres types de paiement
+      // Plus strict que juste vérifier la longueur
+
+      if (cleanNumber.length < 4 || cleanNumber.length > 30) {
+        toast.error(
+          'Le numéro de compte doit contenir entre 4 et 30 chiffres',
+          {
+            position: 'bottom-right',
+          },
+        );
+        setIsSubmitting(false);
+        submitAttempts.current = 0;
+        return;
+      }
+
+      // Vérifier que ce n'est pas juste des zéros ou un pattern simple
+      if (/^0+$/.test(cleanNumber) || /^(\d)\1+$/.test(cleanNumber)) {
+        toast.error('Numéro de compte invalide', {
+          position: 'bottom-right',
+        });
+        setIsSubmitting(false);
+        submitAttempts.current = 0;
+        return;
+      }
+
+      // Validation du nom (pour tous les types)
+      const words = accountName.trim().split(/\s+/);
+      if (words.length < 2 || words.some((w) => w.length < 2)) {
+        toast.error('Veuillez saisir votre prénom et nom complets', {
+          position: 'bottom-right',
+        });
+        setIsSubmitting(false);
+        submitAttempts.current = 0;
+        return;
+      }
+
+      validationPassed = true;
+    }
+
+    // Si on arrive ici, la validation est passée
+    if (!validationPassed) {
+      toast.error('Validation échouée', { position: 'bottom-right' });
+      setIsSubmitting(false);
+      submitAttempts.current = 0;
+      return;
     }
 
     return { isValid: true, data: { accountName, accountNumber: cleanNumber } };
