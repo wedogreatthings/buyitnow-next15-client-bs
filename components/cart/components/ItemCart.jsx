@@ -4,6 +4,7 @@ import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { formatPrice } from '@/helpers/helpers';
+import { Minus, Plus, Trash2 } from 'lucide-react';
 
 const ItemCart = memo(
   ({
@@ -97,20 +98,7 @@ const ItemCart = memo(
                 disabled={cartItem.quantity <= 1 || isOutOfStock}
                 aria-label="Diminuer la quantité"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M20 12H4"
-                  />
-                </svg>
+                <Minus />
               </button>
 
               <input
@@ -128,20 +116,7 @@ const ItemCart = memo(
                 disabled={cartItem.quantity >= cartItem?.stock || isOutOfStock}
                 aria-label="Augmenter la quantité"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
+                <Plus />
               </button>
             </div>
           </div>
@@ -177,20 +152,7 @@ const ItemCart = memo(
                   disabled={isDeleting}
                   className="text-xs text-red-600 hover:text-red-800 transition-colors flex items-center disabled:opacity-50 group-hover:underline"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4 mr-1"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
+                  <Trash2 />
                   Supprimer
                 </button>
               )}

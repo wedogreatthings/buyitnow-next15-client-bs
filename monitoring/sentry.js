@@ -6,6 +6,24 @@ import * as Sentry from '@sentry/nextjs';
  * L'initialisation se fait dans instrumentation.js / sentry.server.config.js
  */
 
+const captureClientError = (error, component, action, isCritical = false) => {
+  // Ne capturer que si Sentry est initialisé
+  if (typeof window === 'undefined') return;
+
+  // Pour 500 users/jour, être sélectif
+  if (!isCritical && Math.random() > 0.3) return; // 30% sampling non-critique
+
+  captureException(error, {
+    tags: {
+      component,
+      action,
+      critical: isCritical,
+      client_side: true,
+    },
+    fingerprint: [component, action, error.name], // Grouper les erreurs similaires
+  });
+};
+
 /**
  * Capture une exception avec des informations contextuelles supplémentaires
  * @param {Error} error - L'erreur à capturer
@@ -112,6 +130,7 @@ function hashCode(str) {
 
 // Export par défaut pour compatibilité
 export default {
+  captureClientError,
   captureException,
   captureMessage,
   setUser,
