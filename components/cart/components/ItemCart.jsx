@@ -152,7 +152,7 @@ const ItemCart = memo(
                   disabled={isDeleting}
                   className="text-xs text-red-600 hover:text-red-800 transition-colors flex items-center disabled:opacity-50 group-hover:underline"
                 >
-                  <Trash2 />
+                  <Trash2 className="mr-2" />
                   Supprimer
                 </button>
               )}
