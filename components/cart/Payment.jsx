@@ -179,10 +179,6 @@ const Payment = () => {
     // Permettre seulement les chiffres et formater pour une meilleure lisibilité
     const rawValue = e.target.value.replace(/[^\d]/g, '');
 
-    // Formater le numéro pour une meilleure lisibilité (groupes de 4 chiffres)
-    // mais uniquement pour l'affichage, la validation utilisera la valeur brute
-    // const formattedValue = rawValue.replace(/(\d{4})(?=\d)/g, '$1 ');
-
     setAccountNumber(rawValue); // Stocke la valeur sans espaces pour le traitement
   }, []);
 
@@ -228,7 +224,7 @@ const Payment = () => {
       }
 
       // Validation avec le schéma existant (si c'est un paiement djiboutien)
-      if (accountNumber.match(/^77[0-9]{6}$/)) {
+      if (accountNumber.match(/^[0-9]{4-10}$/)) {
         const paymentData = mapToPaymentSchema(
           paymentType,
           accountName,
@@ -319,7 +315,6 @@ const Payment = () => {
         extra: {
           hasOrderInfo: !!orderInfo,
           hasPaymentType: !!paymentType,
-          // Ne pas inclure les données sensibles
         },
       });
 

@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { cookies } from 'next/headers';
 import { captureException } from '@/monitoring/sentry';
 import PaymentPageSkeleton from '@/components/skeletons/PaymentPageSkeleton';
+import { redirect } from 'next/navigation';
 
 // Forcer le rendu dynamique pour cette page
 export const dynamic = 'force-dynamic';
@@ -43,9 +44,7 @@ const PaymentPage = async () => {
 
     if (!sessionCookie) {
       // Rediriger vers la page de connexion avec retour après authentification
-      // return redirect('/login?callbackUrl=/payment');
-      console.log('Vous etes pas connecte');
-      return;
+      return redirect('/login?callbackUrl=/payment');
     }
 
     return (
