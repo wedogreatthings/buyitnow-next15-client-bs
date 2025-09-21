@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { createContext, useState } from 'react';
+import { captureClientError } from '@/monitoring/sentry';
 
 const OrderContext = createContext();
 
@@ -25,17 +26,50 @@ export const OrderProvider = ({ children }) => {
 
   // Méthodes simples déjà OK
   const saveOnCheckout = ({ cart, amount, tax = 0, totalAmount }) => {
-    const validAmount = parseFloat(amount) || 0;
-    const validTax = parseFloat(tax) || 0;
-    const validTotal = parseFloat(totalAmount) || validAmount + validTax;
+    try {
+      const validAmount = parseFloat(amount) || 0;
+      const validTax = parseFloat(tax) || 0;
+      const validTotal = parseFloat(totalAmount) || validAmount + validTax;
 
-    setCheckoutInfo({
-      amount: validAmount,
-      tax: validTax,
-      totalAmount: validTotal,
-      items: cart,
-      timestamp: Date.now(),
-    });
+      // Validation basique des montants
+      if (validAmount < 0 || validTax < 0 || validTotal < 0) {
+        const validationError = new Error(
+          'Montants négatifs détectés dans saveOnCheckout',
+        );
+        captureClientError(
+          validationError,
+          'OrderContext',
+          'saveOnCheckout',
+          false,
+        );
+        return;
+      }
+
+      if (!cart || !Array.isArray(cart) || cart.length === 0) {
+        const validationError = new Error(
+          'Panier vide ou invalide dans saveOnCheckout',
+        );
+        captureClientError(
+          validationError,
+          'OrderContext',
+          'saveOnCheckout',
+          false,
+        );
+        return;
+      }
+
+      setCheckoutInfo({
+        amount: validAmount,
+        tax: validTax,
+        totalAmount: validTotal,
+        items: cart,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      // Monitoring pour erreurs inattendues lors de la sauvegarde checkout
+      captureClientError(error, 'OrderContext', 'saveOnCheckout', true);
+      console.error('Error in saveOnCheckout:', error.message);
+    }
   };
 
   const addOrder = async (orderInfo) => {
@@ -46,13 +80,30 @@ export const OrderProvider = ({ children }) => {
 
       // Validation basique
       if (!orderInfo) {
+        const validationError = new Error('Données de commande manquantes');
+        captureClientError(validationError, 'OrderContext', 'addOrder', false);
         setError('Données de commande manquantes');
         setUpdated(false);
         return;
       }
 
       if (!orderInfo.orderItems || orderInfo.orderItems.length === 0) {
+        const validationError = new Error(
+          'Panier vide lors de la création de commande',
+        );
+        captureClientError(validationError, 'OrderContext', 'addOrder', false);
         setError('Votre panier est vide');
+        setUpdated(false);
+        return;
+      }
+
+      // Validation des montants
+      if (!orderInfo.totalAmount || orderInfo.totalAmount <= 0) {
+        const validationError = new Error(
+          'Montant total invalide pour la commande',
+        );
+        captureClientError(validationError, 'OrderContext', 'addOrder', false);
+        setError('Montant de commande invalide');
         setUpdated(false);
         return;
       }
@@ -79,40 +130,48 @@ export const OrderProvider = ({ children }) => {
       const data = await res.json();
 
       if (!res.ok) {
+        let errorMessage = '';
         switch (res.status) {
           case 400:
-            setError(data.message || 'Données de commande invalides');
+            errorMessage = data.message || 'Données de commande invalides';
             break;
           case 401:
-            setError('Session expirée. Veuillez vous reconnecter.');
+            errorMessage = 'Session expirée. Veuillez vous reconnecter.';
             setTimeout(() => router.push('/login'), 2000);
             break;
           case 404:
-            setError('Utilisateur non trouvé');
+            errorMessage = 'Utilisateur non trouvé';
             setTimeout(() => router.push('/login'), 2000);
             break;
           case 409:
-            // Produits indisponibles
+            // Produits indisponibles - Cas spécial critique pour l'e-commerce
             if (data.unavailableProducts) {
               setLowStockProducts(data.unavailableProducts);
+              errorMessage = 'Produits indisponibles détectés';
               router.push('/error');
             } else {
-              setError('Certains produits ne sont plus disponibles');
+              errorMessage = 'Certains produits ne sont plus disponibles';
             }
             break;
           case 429:
-            setError('Trop de tentatives. Réessayez plus tard.');
+            errorMessage = 'Trop de tentatives. Réessayez plus tard.';
             break;
           default:
-            setError(
-              data.message || 'Erreur lors du traitement de la commande',
-            );
+            errorMessage =
+              data.message || 'Erreur lors du traitement de la commande';
         }
+
+        // Monitoring pour erreurs HTTP - Critique pour session/utilisateur/stock
+        const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
+        const isCritical = [401, 404, 409].includes(res.status);
+        captureClientError(httpError, 'OrderContext', 'addOrder', isCritical);
+
+        setError(errorMessage);
         setUpdated(false);
         return;
       }
 
-      // Succès
+      // Succès - Validation de la réponse
       if (data.success && data.id) {
         setOrderId(data.id);
         setError(null);
@@ -120,13 +179,31 @@ export const OrderProvider = ({ children }) => {
         console.log('Order created:', data.orderNumber);
         router.push('/confirmation');
       } else {
+        // Succès partiel ou réponse malformée - Critique pour l'e-commerce
+        const responseError = new Error(
+          'Réponse API malformée lors de la création de commande',
+        );
+        captureClientError(responseError, 'OrderContext', 'addOrder', true);
         setError('Erreur lors de la création de la commande');
       }
     } catch (error) {
+      // Erreurs réseau/système
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps. Veuillez réessayer.');
+        captureClientError(error, 'OrderContext', 'addOrder', true); // Critique : timeout sur commande
+      } else if (
+        error.name === 'TypeError' &&
+        error.message.includes('fetch')
+      ) {
+        setError('Problème de connexion. Vérifiez votre connexion.');
+        captureClientError(error, 'OrderContext', 'addOrder', true); // Critique : erreur réseau sur commande
+      } else if (error instanceof SyntaxError) {
+        // Erreur de parsing JSON - Critique
+        setError('Réponse serveur invalide.');
+        captureClientError(error, 'OrderContext', 'addOrder', true);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
+        captureClientError(error, 'OrderContext', 'addOrder', true); // Toute autre erreur est critique pour une commande
       }
       console.error('Order creation error:', error.message);
     } finally {
@@ -136,6 +213,70 @@ export const OrderProvider = ({ children }) => {
 
   const clearErrors = () => {
     setError(null);
+  };
+
+  // Wrapper pour setters avec monitoring des erreurs critiques
+  const safeSetPaymentTypes = (types) => {
+    try {
+      if (!Array.isArray(types)) {
+        const validationError = new Error(
+          'Types de paiement invalides (non-array)',
+        );
+        captureClientError(
+          validationError,
+          'OrderContext',
+          'setPaymentTypes',
+          false,
+        );
+        setPaymentTypes([]);
+        return;
+      }
+      setPaymentTypes(types);
+    } catch (error) {
+      captureClientError(error, 'OrderContext', 'setPaymentTypes', true);
+      setPaymentTypes([]);
+    }
+  };
+
+  const safeSetAddresses = (addresses) => {
+    try {
+      if (!Array.isArray(addresses)) {
+        const validationError = new Error('Adresses invalides (non-array)');
+        captureClientError(
+          validationError,
+          'OrderContext',
+          'setAddresses',
+          false,
+        );
+        setAddresses([]);
+        return;
+      }
+      setAddresses(addresses);
+    } catch (error) {
+      captureClientError(error, 'OrderContext', 'setAddresses', true);
+      setAddresses([]);
+    }
+  };
+
+  const safeSetDeliveryPrice = (price) => {
+    try {
+      const validPrice = parseFloat(price) || 0;
+      if (validPrice < 0) {
+        const validationError = new Error('Prix de livraison négatif');
+        captureClientError(
+          validationError,
+          'OrderContext',
+          'setDeliveryPrice',
+          false,
+        );
+        setDeliveryPrice(0);
+        return;
+      }
+      setDeliveryPrice(validPrice);
+    } catch (error) {
+      captureClientError(error, 'OrderContext', 'setDeliveryPrice', true);
+      setDeliveryPrice(0);
+    }
   };
 
   return (
@@ -152,11 +293,11 @@ export const OrderProvider = ({ children }) => {
         deliveryPrice,
         checkoutInfo,
         orderInfo,
-        setPaymentTypes,
-        setAddresses,
+        setPaymentTypes: safeSetPaymentTypes,
+        setAddresses: safeSetAddresses,
         setShippingInfo,
         setShippingStatus,
-        setDeliveryPrice,
+        setDeliveryPrice: safeSetDeliveryPrice,
         setOrderInfo,
         saveOnCheckout,
         addOrder,
