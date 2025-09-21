@@ -1,11 +1,44 @@
 // components/cart/Confirmation.jsx
 'use client';
 
+import CartContext from '@/context/CartContext';
+import OrderContext from '@/context/OrderContext';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { useContext, useEffect } from 'react';
+import { toast } from 'react-toastify';
+import BreadCrumbs from '../layouts/BreadCrumbs';
 
-const Confirmation = ({ orderNumber }) => {
+const Confirmation = () => {
+  const { orderId, paymentTypes } = useContext(OrderContext);
+  const { setCartToState } = useContext(CartContext);
+
+  useEffect(() => {
+    // Chargement initial du panier - OPTIMISÉ
+    const loadCart = async () => {
+      try {
+        await setCartToState();
+      } catch (error) {
+        console.error('Erreur lors du chargement du panier:', error);
+        toast.error('Impossible de charger votre panier. Veuillez réessayer.');
+      }
+    };
+
+    loadCart();
+  }, []);
+
+  if (orderId === undefined || orderId === null) {
+    return notFound();
+  }
+
+  const breadCrumbs = [
+    { name: 'Home', url: '/' },
+    { name: 'Confirmation', url: '' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
+      <BreadCrumbs breadCrumbs={breadCrumbs} />
       <div className="container max-w-2xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow p-8">
           {/* Icône de succès */}
@@ -20,7 +53,7 @@ const Confirmation = ({ orderNumber }) => {
 
             <p className="text-gray-600">
               Numéro de commande :{' '}
-              <span className="font-mono font-semibold">{orderNumber}</span>
+              <span className="font-mono font-semibold">{orderId}</span>
             </p>
           </div>
 
