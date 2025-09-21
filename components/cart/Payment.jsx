@@ -21,6 +21,7 @@ import OrderContext from '@/context/OrderContext';
 import { isArrayEmpty, formatPrice, safeValue } from '@/helpers/helpers';
 import PaymentPageSkeleton from '../skeletons/PaymentPageSkeleton';
 import { validateDjiboutiPayment } from '@/helpers/validation';
+import { HandCoins, Info, LoaderCircle, ShoppingCart } from 'lucide-react';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -393,19 +394,7 @@ const Payment = () => {
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="flex flex-col items-center justify-center">
           <div className="bg-blue-50 rounded-full p-6 mb-6">
-            <svg
-              className="w-16 h-16 text-blue-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
+            <ShoppingCart size={72} strokeWidth={1.5} />
           </div>
           <h2 className="text-2xl font-semibold mb-3">Votre panier est vide</h2>
           <p className="text-gray-600 mb-6 max-w-md">
@@ -453,20 +442,7 @@ const Payment = () => {
 
                 <div className="mt-8 p-4 bg-blue-50 rounded-lg text-sm text-blue-700">
                   <p className="flex items-start">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 mr-2 flex-shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
+                    <Info className="mr-2" />
                     Cette transaction est sécurisée. Vos informations de
                     paiement ne sont pas stockées et sont transmises de manière
                     cryptée.
@@ -584,26 +560,7 @@ const Payment = () => {
                   >
                     {isSubmitting ? (
                       <span className="flex items-center justify-center">
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
+                        <LoaderCircle className="mr-2" />
                         Traitement...
                       </span>
                     ) : (
@@ -623,20 +580,7 @@ const Payment = () => {
 // Message quand aucun moyen de paiement n'est disponible
 const NoPaymentMethodsFound = memo(() => (
   <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-12 w-12 mx-auto text-gray-400 mb-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-      />
-    </svg>
+    <HandCoins className="mr-2" />
     <p className="font-semibold text-lg mb-2">
       Aucun moyen de paiement disponible
     </p>

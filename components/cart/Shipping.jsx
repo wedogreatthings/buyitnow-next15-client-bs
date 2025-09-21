@@ -20,6 +20,7 @@ import CartContext from '@/context/CartContext';
 import OrderContext from '@/context/OrderContext';
 import { isArrayEmpty, formatPrice, safeValue } from '@/helpers/helpers';
 import { validateAddressSelection } from '@/helpers/validation';
+import { MapPin, Phone, Plus, ShoppingCart } from 'lucide-react';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -217,19 +218,7 @@ const Shipping = ({ initialData }) => {
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="flex flex-col items-center justify-center">
           <div className="bg-blue-50 rounded-full p-6 mb-6">
-            <svg
-              className="w-16 h-16 text-blue-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
+            <ShoppingCart size={72} strokeWidth={1.5} />
           </div>
           <h2 className="text-2xl font-semibold mb-3">Votre panier est vide</h2>
           <p className="text-gray-600 mb-6 max-w-md">
@@ -285,20 +274,7 @@ const Shipping = ({ initialData }) => {
                     href="/address/new"
                     className="px-4 py-2 text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors flex items-center"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 mr-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M12 4v16m8-8H4"
-                      />
-                    </svg>
+                    <Plus className="mr-2" />
                     Ajouter une nouvelle adresse
                   </Link>
                 </div>
@@ -350,26 +326,7 @@ const Shipping = ({ initialData }) => {
 // Composant d'affichage quand aucune adresse n'est trouvée
 const NoAddressesFound = memo(() => (
   <div className="text-center py-8 bg-gray-50 rounded-lg border border-gray-200">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      className="h-12 w-12 mx-auto text-gray-400 mb-4"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-      />
-    </svg>
+    <MapPin className="mr-2" />
     <p className="font-semibold text-lg mb-2">Aucune adresse trouvée</p>
     <p className="text-gray-600 mb-4 px-4">
       Veuillez ajouter au moins une adresse pour continuer votre commande.
@@ -378,20 +335,7 @@ const NoAddressesFound = memo(() => (
       href="/address/new"
       className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm"
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4 mr-2"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          d="M12 4v16m8-8H4"
-        />
-      </svg>
+      <Plus className="mr-2" />
       Ajouter une adresse
     </Link>
   </div>
@@ -431,20 +375,7 @@ const AddressCard = memo(({ address, isSelected, onSelect }) => (
           <p className="mt-1">{address.country}</p>
           {address.phoneNo && (
             <p className="mt-1 flex items-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-3.5 w-3.5 mr-1"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                />
-              </svg>
+              <Phone className="mr-2" />
               {address.phoneNo}
             </p>
           )}

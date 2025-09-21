@@ -7,7 +7,7 @@ const EmptyCart = memo(() => {
   return (
     <div className="py-12 flex flex-col items-center justify-center text-center px-4 transition-all duration-300 transform translate-y-0 opacity-100">
       <div className="bg-gray-100 rounded-full p-6 mb-6">
-        <ShoppingCart />
+        <ShoppingCart size={72} strokeWidth={1.5} />
       </div>
       <h2 className="text-2xl font-semibold mb-3 text-gray-800">
         Votre panier est vide

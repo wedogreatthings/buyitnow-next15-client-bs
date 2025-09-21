@@ -19,6 +19,7 @@ import { captureException } from '@/monitoring/sentry';
 import CartContext from '@/context/CartContext';
 import OrderContext from '@/context/OrderContext';
 import { isArrayEmpty } from '@/helpers/helpers';
+import { House, Store } from 'lucide-react';
 
 // Chargement dynamique des composants
 const BreadCrumbs = dynamic(() => import('@/components/layouts/BreadCrumbs'), {
@@ -243,39 +244,7 @@ const DeliveryOption = memo(({ href, onClick, text, color, icon }) => {
       onClick={onClick}
       className={`flex flex-col items-center justify-center p-6 border-2 ${colors.border} rounded-lg ${colors.hover} transition-colors duration-200 group flex-1`}
     >
-      <div className="mb-3">
-        {icon === 'home' ? (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8 text-gray-400 group-hover:text-blue-500 transition-colors"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            />
-          </svg>
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-8 w-8 text-gray-400 group-hover:text-red-500 transition-colors"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-            />
-          </svg>
-        )}
-      </div>
+      <div className="mb-3">{icon === 'home' ? <House /> : <Store />}</div>
       <p className={`font-medium ${colors.text}`}>{text}</p>
     </Link>
   );
@@ -289,8 +258,6 @@ const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
     const amount = checkoutInfo?.amount || 0;
     return typeof amount === 'number' ? amount.toFixed(2) : '0.00';
   }, [checkoutInfo]);
-
-  console.log('Formatted Amount:', formattedAmount);
 
   return (
     <div className="bg-white shadow rounded-lg p-6 sticky top-24">

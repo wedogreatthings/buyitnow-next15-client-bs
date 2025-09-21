@@ -8,6 +8,7 @@ import { notFound } from 'next/navigation';
 import { useContext, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import BreadCrumbs from '../layouts/BreadCrumbs';
+import { CircleCheckBig } from 'lucide-react';
 
 const Confirmation = () => {
   const { orderId, paymentTypes } = useContext(OrderContext);
@@ -44,7 +45,7 @@ const Confirmation = () => {
           {/* Icône de succès */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <svg className="w-8 h-8 text-green-500" /* ... */ />
+              <CircleCheckBig size={72} strokeWidth={1.5} />
             </div>
 
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
