@@ -4,10 +4,11 @@ import { captureException } from '@/monitoring/sentry';
 import CartContext from '@/context/CartContext';
 import { DECREASE, INCREASE } from '@/helpers/constants';
 import { throttle } from '@/utils/performance';
+import OrderContext from '@/context/OrderContext';
 
 const useCartOperations = () => {
-  const { updateCart, deleteItemFromCart, saveOnCheckout, cartTotal } =
-    useContext(CartContext);
+  const { updateCart, deleteItemFromCart, cartTotal } = useContext(CartContext);
+  const { saveOnCheckout } = useContext(OrderContext);
 
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [itemBeingRemoved, setItemBeingRemoved] = useState(null);
