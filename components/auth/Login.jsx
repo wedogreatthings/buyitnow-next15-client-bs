@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { parseCallbackUrl } from '@/helpers/helpers';
 import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { LoaderCircle } from 'lucide-react';
+import { captureClientError } from '@/monitoring/sentry';
 
 const Login = ({ csrfToken }) => {
   // États du formulaire
@@ -24,18 +25,23 @@ const Login = ({ csrfToken }) => {
 
   // Vérifier l'état de la connexion
   useEffect(() => {
-    setIsOffline(!navigator.onLine);
+    try {
+      setIsOffline(!navigator.onLine);
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    } catch (error) {
+      // Monitoring : Erreur lors de la détection de connexion
+      captureClientError(error, 'Login', 'connectionDetection', false);
+    }
   }, []);
 
   // Gestionnaire de soumission du formulaire
@@ -44,6 +50,8 @@ const Login = ({ csrfToken }) => {
 
     // Vérifier d'abord si l'utilisateur est hors ligne
     if (isOffline) {
+      const offlineError = new Error('Tentative de connexion hors ligne');
+      captureClientError(offlineError, 'Login', 'submit', false);
       toast.error(
         'Vous semblez être hors ligne. Veuillez vérifier votre connexion internet.',
       );
@@ -53,32 +61,53 @@ const Login = ({ csrfToken }) => {
     setIsLoading(true);
 
     try {
-      // Validation complète avant soumission
-      await validateLogin({
+      // Validation des données avant envoi
+      const validationResult = await validateLogin({
         email: email || '',
         password: password || '',
       });
+
+      if (!validationResult.isValid) {
+        // Monitoring : Erreurs de validation côté client
+        const validationError = new Error('Échec validation login côté client');
+        captureClientError(validationError, 'Login', 'validation', false, {
+          errorFields: Object.keys(validationResult.errors || {}),
+          emailProvided: !!email,
+          passwordProvided: !!password,
+        });
+
+        setErrors(validationResult.errors || {});
+        toast.error('Veuillez corriger les erreurs dans le formulaire.');
+        setIsLoading(false);
+        return;
+      }
 
       // Tentative de connexion
       const data = await signIn('credentials', {
         email,
         password,
         callbackUrl: callBackUrl ? parseCallbackUrl(callBackUrl) : '/',
-
         csrfToken,
         redirect: false, // Désactiver la redirection automatique pour gérer les erreurs
       });
 
       if (data?.error) {
-        // Analyser le type d'erreur pour afficher un message approprié
+        // Classification et monitoring des erreurs de connexion
+        let errorType = 'generic';
+        let isCritical = false;
+
         if (
           data.error.includes('rate limit') ||
           data.error.includes('too many')
         ) {
+          errorType = 'rate_limit';
+          isCritical = true; // Peut indiquer une attaque
           toast.error(
             'Trop de tentatives de connexion. Veuillez réessayer ultérieurement.',
           );
         } else if (data.error.includes('locked')) {
+          errorType = 'account_locked';
+          isCritical = true;
           toast.error(
             'Votre compte est temporairement verrouillé suite à plusieurs tentatives.',
           );
@@ -86,30 +115,63 @@ const Login = ({ csrfToken }) => {
           data.error.toLowerCase().includes('email') ||
           data.error.toLowerCase().includes('password')
         ) {
+          errorType = 'invalid_credentials';
+          isCritical = false; // Erreur normale
           toast.error(
             'Identifiants incorrects. Veuillez vérifier votre email et mot de passe.',
           );
         } else {
+          errorType = 'unknown';
+          isCritical = true; // Erreur inconnue = critique
           toast.error(data.error || 'Échec de connexion');
         }
+
+        // Monitoring avec contexte riche
+        const loginError = new Error(`Échec connexion: ${errorType}`);
+        captureClientError(loginError, 'Login', 'signIn', isCritical, {
+          errorType,
+          originalError: data.error,
+          hasCallbackUrl: !!callBackUrl,
+          emailDomain: email ? email.split('@')[1] : null,
+        });
       } else if (data?.ok) {
-        // Connexion réussie
+        // Connexion réussie - Monitoring succès
+        captureClientError(
+          new Error('Connexion réussie'),
+          'Login',
+          'signInSuccess',
+          false,
+          {
+            hasCallbackUrl: !!callBackUrl,
+            redirectUrl: callBackUrl ? parseCallbackUrl(callBackUrl) : '/',
+            action: 'success',
+          },
+        );
+
         toast.success('Connexion réussie!');
         router.push('/');
       }
     } catch (error) {
-      // Gérer les erreurs de validation
+      // Monitoring : Erreurs techniques pendant la connexion
       if (error.name === 'ValidationError') {
-        // Organiser les erreurs par champ
+        // Erreurs de validation Yup
         const fieldErrors = {};
         error.inner?.forEach((err) => {
           fieldErrors[err.path] = err.message;
         });
         setErrors(fieldErrors);
 
+        captureClientError(error, 'Login', 'yupValidation', false, {
+          validationErrors: Object.keys(fieldErrors),
+        });
         toast.error('Veuillez corriger les erreurs dans le formulaire.');
       } else {
-        // Erreurs techniques
+        // Erreurs techniques (réseau, parsing, etc.)
+        captureClientError(error, 'Login', 'technicalError', true, {
+          errorName: error.name,
+          errorMessage: error.message,
+          stack: error.stack,
+        });
         console.error('Login error:', error);
         toast.error('Un problème est survenu. Veuillez réessayer.');
       }

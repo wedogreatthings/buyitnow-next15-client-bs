@@ -3,13 +3,14 @@
 import { useState, useContext, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import AuthContext from '@/context/AuthContext';
+import { captureClientError } from '@/monitoring/sentry';
 
 /**
  * Formulaire de contact sécurisé avec validation avancée
  *
  * @returns {JSX.Element} Composant de formulaire de contact
  */
-const Contact = ({ referrerValidated = true }) => {
+const Contact = () => {
   // États du formulaire
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
@@ -72,6 +73,12 @@ const Contact = ({ referrerValidated = true }) => {
       const timeSinceLoad = Date.now() - loadTime;
 
       if (timeSinceLoad < 1500) {
+        const botError = new Error('Soumission trop rapide détectée');
+        captureClientError(botError, 'Contact', 'botDetection', true, {
+          timeSinceLoad,
+          subjectLength: subject ? subject.length : 0,
+          messageLength: message ? message.length : 0,
+        });
         // Moins de 1.5 secondes
         // Simuler un succès mais ne pas envoyer réellement
         // (pour ne pas alerter les bots qu'ils ont été détectés)
@@ -86,6 +93,11 @@ const Contact = ({ referrerValidated = true }) => {
       await sendEmail(emailData);
     } catch (error) {
       console.error("Erreur lors de l'envoi du message:", error);
+      captureClientError(error, 'Contact', 'sendError', true, {
+        errorMessage: error.message,
+        hasSubject: !!subject,
+        hasMessage: !!message,
+      });
       toast.error(
         error.message ||
           'Une erreur inattendue est survenue. Veuillez réessayer.',

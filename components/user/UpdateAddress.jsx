@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 
 import AuthContext from '@/context/AuthContext';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { captureClientError } from '@/monitoring/sentry';
 
 /**
  * UpdateAddress component for managing address modification and deletion
@@ -160,10 +161,13 @@ const UpdateAddress = ({ id, address, userId, referer }) => {
         });
       }
     } catch (error) {
+      console.error('Address update error', error);
+      captureClientError(error, 'UpdateAddress', 'updateError', true, {
+        addressId: id ? `${id.substring(0, 4)}...` : null,
+      });
       toast.error(
         error.message || 'Une erreur est survenue lors de la mise à jour',
       );
-      console.error('Address update error', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -203,10 +207,13 @@ const UpdateAddress = ({ id, address, userId, referer }) => {
         });
       }
     } catch (error) {
+      console.error('Address deletion error', error);
+      captureClientError(error, 'UpdateAddress', 'deleteError', true, {
+        addressId: id ? `${id.substring(0, 4)}...` : null,
+      });
       toast.error(
         error.message || 'Une erreur est survenue lors de la suppression',
       );
-      console.error('Address deletion error', error);
       setIsDeleting(false);
       setShowDeleteConfirm(false);
     }

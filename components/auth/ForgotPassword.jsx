@@ -13,11 +13,12 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { validateForgotPassword } from '@/helpers/validation/schemas/auth';
+import { captureClientError } from '@/monitoring/sentry';
 
 /**
  * Composant de demande de réinitialisation de mot de passe
  */
-const ForgotPassword = ({ referer }) => {
+const ForgotPassword = () => {
   // États du composant
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState({});
@@ -39,18 +40,22 @@ const ForgotPassword = ({ referer }) => {
 
   // Vérifier l'état de la connexion internet
   useEffect(() => {
-    setIsOffline(!navigator.onLine);
+    try {
+      setIsOffline(!navigator.onLine);
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    } catch (error) {
+      captureClientError(error, 'ForgotPassword', 'connectionDetection', false);
+    }
   }, []);
 
   // Gestion du countdown pour le rate limiting
@@ -73,6 +78,7 @@ const ForgotPassword = ({ referer }) => {
       toast.error(
         'Vous semblez être hors ligne. Veuillez vérifier votre connexion internet.',
       );
+
       return;
     }
 
@@ -97,6 +103,7 @@ const ForgotPassword = ({ referer }) => {
         setErrors(validation.errors);
         toast.error('Veuillez corriger les erreurs dans le formulaire.');
         setIsSubmitting(false);
+
         return;
       }
 
@@ -139,6 +146,11 @@ const ForgotPassword = ({ referer }) => {
       }
     } catch (error) {
       console.error('Forgot password error:', error);
+      // Erreurs techniques
+      captureClientError(error, 'ForgotPassword', 'technicalError', true, {
+        errorName: error.name,
+        emailProvided: !!email,
+      });
 
       // Message d'erreur générique
       toast.error(

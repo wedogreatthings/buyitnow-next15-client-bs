@@ -6,7 +6,6 @@ import { toast } from 'react-toastify';
 
 import CartContext from '@/context/CartContext';
 import dynamic from 'next/dynamic';
-import { captureException } from '@/monitoring/sentry';
 import CartItemSkeleton from '../skeletons/CartItemSkeleton';
 
 // Chargement dynamique du composant ItemCart
@@ -18,7 +17,7 @@ const ItemCart = dynamic(() => import('./components/ItemCart'), {
 // Composants et hooks extraits pour meilleure organisation
 import EmptyCart from './components/EmptyCart';
 import CartSummary from './components/CartSummary';
-import useCartOperations from '../../hooks/useCartOperations';
+import useCartOperations from '../../hooks/useCartOperations'; // ✅ Hook avec monitoring intégré
 import CartSkeleton from '../skeletons/CartSkeleton';
 
 const Cart = () => {
@@ -35,7 +34,7 @@ const Cart = () => {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const router = useRouter();
 
-  // Hooks personnalisé pour les opérations de panier
+  // ✅ Hook personnalisé avec monitoring intégré
   const {
     deleteInProgress,
     itemBeingRemoved,
@@ -69,9 +68,7 @@ const Cart = () => {
         await setCartToState();
       } catch (error) {
         console.error('Erreur lors du chargement du panier:', error);
-        captureException(error, {
-          tags: { component: 'Cart', action: 'initialLoad' },
-        });
+        // ❌ SUPPRIMÉ : Plus de captureException ici (géré par CartContext)
         toast.error('Impossible de charger votre panier. Veuillez réessayer.');
       } finally {
         if (isMounted) {

@@ -8,7 +8,7 @@ import DOMPurify from 'dompurify';
 import AuthContext from '@/context/AuthContext';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-// import { addressSchema } from '@/helpers/schemas';
+import { captureClientError } from '@/monitoring/sentry';
 
 /**
  * NewAddress component for managing address entry
@@ -149,10 +149,18 @@ const NewAddress = ({ userId, referer }) => {
         });
       }
     } catch (error) {
+      console.error('Address submission error', error);
+      captureClientError(error, 'NewAddress', 'addAddressError', true, {
+        errorMessage: error.message,
+        formData: {
+          hasStreet: !!formState.street,
+          hasCity: !!formState.city,
+          country: formState.country,
+        },
+      });
       toast.error(
         error.message || "Une erreur est survenue lors de l'ajout de l'adresse",
       );
-      console.error('Address submission error', error);
     } finally {
       setIsSubmitting(false);
     }

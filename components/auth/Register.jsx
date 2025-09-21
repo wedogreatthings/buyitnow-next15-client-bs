@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { CheckCircle, LoaderCircle, Mail } from 'lucide-react';
 import AuthContext from '@/context/AuthContext';
+import { captureClientError } from '@/monitoring/sentry';
 
 const Register = () => {
   // Contexte d'authentification
@@ -31,34 +32,69 @@ const Register = () => {
 
   // Détection de l'état de la connexion internet
   useEffect(() => {
-    setIsOffline(!navigator.onLine);
+    try {
+      setIsOffline(!navigator.onLine);
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
 
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    } catch (error) {
+      // Monitoring : Erreur de détection de connexion
+      captureClientError(error, 'Register', 'connectionDetection', false);
+    }
   }, []);
 
   // Gestion des erreurs depuis le contexte
   useEffect(() => {
     if (error) {
-      // Traitement intelligent des erreurs
+      // Classification des erreurs avec monitoring
+      let errorType = 'generic';
+      let isCritical = false;
+
       if (error.includes('duplicate') || error.includes('already exists')) {
+        errorType = 'duplicate_user';
+        isCritical = false; // Erreur utilisateur normale
         toast.error(
           'Cet email est déjà utilisé. Veuillez vous connecter ou utiliser un autre email.',
         );
+      } else if (error.includes('validation')) {
+        errorType = 'validation_error';
+        isCritical = false;
+        toast.error(error);
       } else {
+        errorType = 'server_error';
+        isCritical = true; // Erreur serveur = critique
         toast.error(error);
       }
+
+      // Monitoring avec contexte
+      captureClientError(
+        new Error(`Erreur contexte: ${errorType}`),
+        'Register',
+        'contextError',
+        isCritical,
+        {
+          errorType,
+          originalError: error,
+          formData: {
+            hasName: !!formData.name,
+            hasEmail: !!formData.email,
+            hasPhone: !!formData.phone,
+            emailDomain: formData.email ? formData.email.split('@')[1] : null,
+          },
+        },
+      );
+
       clearErrors();
     }
-  }, [error, clearErrors]);
+  }, [error, clearErrors, formData]);
 
   // Mise à jour des champs du formulaire
   const handleChange = async (e) => {
@@ -71,7 +107,17 @@ const Register = () => {
 
     // Calcul de la force du mot de passe
     if (name === 'password') {
-      calculatePasswordStrength(value);
+      try {
+        calculatePasswordStrength(value);
+      } catch (error) {
+        // Monitoring : Erreur calcul force mot de passe
+        captureClientError(
+          error,
+          'Register',
+          'passwordStrengthCalculation',
+          false,
+        );
+      }
     }
   };
 
@@ -106,6 +152,8 @@ const Register = () => {
     e.preventDefault();
 
     if (isOffline) {
+      const offlineError = new Error('Tentative inscription hors ligne');
+      captureClientError(offlineError, 'Register', 'submit', false);
       toast.warning(
         'Vous semblez être hors ligne. Veuillez vérifier votre connexion internet.',
       );
@@ -115,7 +163,34 @@ const Register = () => {
     setIsSubmitting(true);
 
     try {
-      // ✅ NOUVELLE APPROCHE: Appel direct à l'API au lieu du contexte
+      // Validation côté client basique
+      if (
+        !formData.name ||
+        !formData.email ||
+        !formData.password ||
+        !formData.phone
+      ) {
+        const validationError = new Error('Champs obligatoires manquants');
+        captureClientError(
+          validationError,
+          'Register',
+          'clientValidation',
+          false,
+          {
+            missingFields: {
+              name: !formData.name,
+              email: !formData.email,
+              password: !formData.password,
+              phone: !formData.phone,
+            },
+          },
+        );
+        toast.error('Tous les champs sont obligatoires');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Appel direct à l'API
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
@@ -130,6 +205,20 @@ const Register = () => {
         // ✅ SUCCÈS: Inscription réussie
         setRegistrationSuccess(true);
         setRegistrationData(data.data);
+
+        // Monitoring succès
+        captureClientError(
+          new Error('Inscription réussie'),
+          'Register',
+          'registrationSuccess',
+          false,
+          {
+            emailSent: data.data?.emailSent,
+            hasNextSteps: !!data.data?.nextSteps,
+            userCreated: !!data.data?.user,
+            action: 'success',
+          },
+        );
 
         // Réinitialiser le formulaire
         setFormData({
@@ -152,13 +241,20 @@ const Register = () => {
           });
         }
       } else {
-        // ✅ ERREUR: Gestion des erreurs spécifiques
+        // ✅ ERREUR: Gestion des erreurs spécifiques avec monitoring
+        let errorType = 'generic';
+        let isCritical = false;
+
         switch (data.code) {
           case 'DUPLICATE_EMAIL':
           case 'DUPLICATE_TELEPHONE':
+            errorType = 'duplicate_data';
+            isCritical = false;
             toast.error(data.message);
             break;
           case 'VALIDATION_FAILED':
+            errorType = 'validation_failed';
+            isCritical = false;
             if (data.errors) {
               setErrors(data.errors);
               toast.error('Veuillez corriger les erreurs dans le formulaire');
@@ -166,11 +262,62 @@ const Register = () => {
               toast.error(data.message);
             }
             break;
+          case 'RATE_LIMITED':
+            errorType = 'rate_limited';
+            isCritical = true; // Peut indiquer une attaque
+            toast.error('Trop de tentatives. Veuillez réessayer plus tard.');
+            break;
           default:
+            errorType = 'server_error';
+            isCritical = true;
             toast.error(data.message || "Erreur lors de l'inscription");
         }
+
+        // Monitoring avec contexte riche
+        captureClientError(
+          new Error(`Échec inscription: ${errorType}`),
+          'Register',
+          'registrationFailure',
+          isCritical,
+          {
+            errorType,
+            statusCode: response.status,
+            originalError: data.message,
+            errorCode: data.code,
+            hasValidationErrors: !!data.errors,
+            formData: {
+              emailDomain: formData.email ? formData.email.split('@')[1] : null,
+              passwordStrength: passwordStrength,
+              nameLength: formData.name ? formData.name.length : 0,
+            },
+          },
+        );
       }
     } catch (error) {
+      // Monitoring : Erreurs techniques
+      let isCritical = true;
+      let errorType = 'unknown';
+
+      if (error.name === 'AbortError') {
+        errorType = 'timeout';
+        isCritical = false;
+      } else if (
+        error.name === 'TypeError' &&
+        error.message.includes('fetch')
+      ) {
+        errorType = 'network_error';
+        isCritical = true;
+      } else if (error instanceof SyntaxError) {
+        errorType = 'json_parse_error';
+        isCritical = true;
+      }
+
+      captureClientError(error, 'Register', 'technicalError', isCritical, {
+        errorType,
+        errorName: error.name,
+        errorMessage: error.message,
+      });
+
       console.error('Registration error:', error);
       toast.error('Une erreur est survenue. Veuillez réessayer.');
     } finally {

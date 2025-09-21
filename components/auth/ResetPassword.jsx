@@ -17,11 +17,12 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { validateResetPassword } from '@/helpers/validation/schemas/auth';
+import { captureClientError } from '@/monitoring/sentry';
 
 /**
  * Composant de réinitialisation de mot de passe avec token
  */
-const ResetPassword = ({ token, referer }) => {
+const ResetPassword = ({ token }) => {
   const router = useRouter();
 
   // Références pour focus
@@ -69,79 +70,92 @@ const ResetPassword = ({ token, referer }) => {
 
   // Calcul de la force du mot de passe
   const calculatePasswordStrength = (password) => {
-    if (!password) {
-      setPasswordStrength(0);
-      return;
+    try {
+      if (!password) {
+        setPasswordStrength(0);
+        return;
+      }
+
+      let score = 0;
+
+      // Longueur (max 30 points)
+      score += Math.min(password.length * 3, 30);
+
+      // Complexité (max 70 points)
+      if (/[a-z]/.test(password)) score += 10; // Minuscules
+      if (/[A-Z]/.test(password)) score += 15; // Majuscules
+      if (/\d/.test(password)) score += 15; // Chiffres
+      if (/[@$!%*?&#]/.test(password)) score += 20; // Caractères spéciaux
+
+      // Variété de caractères
+      const uniqueChars = new Set(password).size;
+      score += Math.min(uniqueChars, 10);
+
+      // Pénalités
+      if (/(123456|password|qwerty|abc123)/i.test(password)) score -= 20;
+      if (/(.)\1{2,}/.test(password)) score -= 10; // Répétitions
+
+      setPasswordStrength(Math.max(0, Math.min(100, score)));
+    } catch (error) {
+      captureClientError(
+        error,
+        'ResetPassword',
+        'passwordStrengthCalculation',
+        false,
+      );
     }
-
-    let score = 0;
-
-    // Longueur (max 30 points)
-    score += Math.min(password.length * 3, 30);
-
-    // Complexité (max 70 points)
-    if (/[a-z]/.test(password)) score += 10; // Minuscules
-    if (/[A-Z]/.test(password)) score += 15; // Majuscules
-    if (/\d/.test(password)) score += 15; // Chiffres
-    if (/[@$!%*?&#]/.test(password)) score += 20; // Caractères spéciaux
-
-    // Variété de caractères
-    const uniqueChars = new Set(password).size;
-    score += Math.min(uniqueChars, 10);
-
-    // Pénalités
-    if (/(123456|password|qwerty|abc123)/i.test(password)) score -= 20;
-    if (/(.)\1{2,}/.test(password)) score -= 10; // Répétitions
-
-    setPasswordStrength(Math.max(0, Math.min(100, score)));
   };
 
   // Gestionnaire de changement des champs
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    try {
+      const { name, value } = e.target;
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
 
-    // Effacer l'erreur du champ quand l'utilisateur tape
-    if (errors[name]) {
-      setErrors((prev) => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
-    }
-
-    // Calculer la force si c'est le nouveau mot de passe
-    if (name === 'newPassword') {
-      calculatePasswordStrength(value);
-    }
-
-    // Vérifier la correspondance des mots de passe
-    if (name === 'confirmPassword' || name === 'newPassword') {
-      if (name === 'confirmPassword' && value !== formData.newPassword) {
-        setErrors((prev) => ({
-          ...prev,
-          confirmPassword: 'Les mots de passe ne correspondent pas',
-        }));
-      } else if (
-        name === 'newPassword' &&
-        formData.confirmPassword &&
-        value !== formData.confirmPassword
-      ) {
-        setErrors((prev) => ({
-          ...prev,
-          confirmPassword: 'Les mots de passe ne correspondent pas',
-        }));
-      } else {
+      // Effacer l'erreur du champ quand l'utilisateur tape
+      if (errors[name]) {
         setErrors((prev) => {
           const newErrors = { ...prev };
-          delete newErrors.confirmPassword;
+          delete newErrors[name];
           return newErrors;
         });
       }
+
+      // Calculer la force si c'est le nouveau mot de passe
+      if (name === 'newPassword') {
+        calculatePasswordStrength(value);
+      }
+
+      // Vérifier la correspondance des mots de passe
+      if (name === 'confirmPassword' || name === 'newPassword') {
+        if (name === 'confirmPassword' && value !== formData.newPassword) {
+          setErrors((prev) => ({
+            ...prev,
+            confirmPassword: 'Les mots de passe ne correspondent pas',
+          }));
+        } else if (
+          name === 'newPassword' &&
+          formData.confirmPassword &&
+          value !== formData.confirmPassword
+        ) {
+          setErrors((prev) => ({
+            ...prev,
+            confirmPassword: 'Les mots de passe ne correspondent pas',
+          }));
+        } else {
+          setErrors((prev) => {
+            const newErrors = { ...prev };
+            delete newErrors.confirmPassword;
+            return newErrors;
+          });
+        }
+      }
+    } catch (error) {
+      captureClientError(error, 'ResetPassword', 'technicalError', true);
     }
   };
 
