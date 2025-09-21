@@ -191,6 +191,60 @@ const Payment = () => {
     };
   };
 
+  // Payment.jsx - Remplacer la ligne 253-283 par :
+  const validatePaymentData = async () => {
+    // Validation universelle d'abord
+    if (!paymentType || !accountName || !accountNumber) {
+      return {
+        isValid: false,
+        errors: { general: 'Tous les champs sont requis' },
+      };
+    }
+
+    // Validation du nom (toujours requise)
+    const nameWords = accountName.trim().split(/\s+/);
+    if (nameWords.length < 2 || nameWords.some((w) => w.length < 2)) {
+      return {
+        isValid: false,
+        errors: { accountName: 'Prénom et nom complets requis' },
+      };
+    }
+
+    // Validation selon le type de compte
+    const cleanNumber = accountNumber.replace(/\D/g, '');
+
+    // Si c'est un numéro djiboutien (77XXXXXX)
+    if (cleanNumber.match(/^77[0-9]{6}$/)) {
+      const paymentData = mapToPaymentSchema(
+        paymentType,
+        accountName,
+        cleanNumber,
+      );
+      return await validateDjiboutiPayment(paymentData);
+    }
+
+    // Pour tous les autres types
+    if (cleanNumber.length < 4 || cleanNumber.length > 30) {
+      return {
+        isValid: false,
+        errors: { accountNumber: 'Numéro invalide (4-30 chiffres)' },
+      };
+    }
+
+    // Vérifications additionnelles selon le type
+    if (paymentType.toLowerCase().includes('bank')) {
+      // Validation IBAN/RIB basique
+      if (cleanNumber.length < 10) {
+        return {
+          isValid: false,
+          errors: { accountNumber: 'Numéro bancaire trop court' },
+        };
+      }
+    }
+
+    return { isValid: true, data: { accountName, accountNumber: cleanNumber } };
+  };
+
   // Handler pour la soumission du paiement
   const handlePayment = useCallback(async () => {
     // Empêcher les soumissions multiples rapides
@@ -207,73 +261,16 @@ const Payment = () => {
     try {
       setIsSubmitting(true);
 
-      // Vérifications basiques
-      if (!paymentType || !accountName || !accountNumber) {
-        const missingFields = [];
-        if (!paymentType) missingFields.push('type de paiement');
-        if (!accountName) missingFields.push('nom du compte');
-        if (!accountNumber) missingFields.push('numéro de compte');
-
-        toast.error(
-          `Veuillez compléter tous les champs requis : ${missingFields.join(', ')}`,
-          { position: 'bottom-right' },
+      // Remplacer toute la section de validation par :
+      const validationResult = await validatePaymentData();
+      if (!validationResult.isValid) {
+        const errorMessages = Object.values(validationResult.errors || {});
+        errorMessages.forEach((msg) =>
+          toast.error(msg, { position: 'bottom-right' }),
         );
         setIsSubmitting(false);
         submitAttempts.current = 0;
         return;
-      }
-
-      // Validation avec le schéma existant (si c'est un paiement djiboutien)
-      if (accountNumber.match(/^[0-9]{4-10}$/)) {
-        const paymentData = mapToPaymentSchema(
-          paymentType,
-          accountName,
-          accountNumber,
-        );
-
-        const validationResult = await validateDjiboutiPayment(paymentData);
-
-        if (!validationResult.isValid) {
-          // Afficher les erreurs de validation
-          const errorMessages = Object.values(validationResult.errors);
-          errorMessages.forEach((msg) => {
-            toast.error(msg, { position: 'bottom-right' });
-          });
-
-          setIsSubmitting(false);
-          submitAttempts.current = 0;
-          return;
-        }
-      } else {
-        // Validation basique pour les autres types de comptes
-        if (accountName.trim().length < 3) {
-          toast.error('Le nom du compte doit contenir au moins 3 caractères', {
-            position: 'bottom-right',
-          });
-          setIsSubmitting(false);
-          submitAttempts.current = 0;
-          return;
-        }
-
-        if (accountNumber.length < 4) {
-          toast.error('Le numéro de compte doit contenir au moins 4 chiffres', {
-            position: 'bottom-right',
-          });
-          setIsSubmitting(false);
-          submitAttempts.current = 0;
-          return;
-        }
-
-        // Vérifier que le nom contient au moins 2 mots
-        const words = accountName.trim().split(/\s+/);
-        if (words.length < 2) {
-          toast.error('Veuillez saisir votre prénom et nom complets', {
-            position: 'bottom-right',
-          });
-          setIsSubmitting(false);
-          submitAttempts.current = 0;
-          return;
-        }
       }
 
       // Création des informations de paiement
