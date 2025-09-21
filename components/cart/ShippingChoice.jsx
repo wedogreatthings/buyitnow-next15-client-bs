@@ -208,6 +208,11 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
               </div>
             </main>
 
+            {console.log('Rendering OrderSummary with:', {
+              checkoutInfo,
+              cart,
+            })}
+
             <aside className="md:w-1/3">
               <OrderSummary checkoutInfo={checkoutInfo} cart={cart} />
             </aside>
@@ -284,10 +289,16 @@ DeliveryOption.displayName = 'DeliveryOption';
 
 // Composant de résumé de commande
 const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
+  console.log('OrderSummary props - checkoutInfo:', checkoutInfo);
+  console.log('OrderSummary props - cart:', cart);
+
+  // Calcul du montant total formaté
   const formattedAmount = useMemo(() => {
     const amount = checkoutInfo?.amount || 0;
     return typeof amount === 'number' ? amount.toFixed(2) : '0.00';
   }, [checkoutInfo]);
+
+  console.log('Formatted Amount:', formattedAmount);
 
   return (
     <div className="bg-white shadow rounded-lg p-6 sticky top-24">

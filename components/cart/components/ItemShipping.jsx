@@ -51,7 +51,7 @@ const ItemShipping = memo(({ item }) => {
             priority={false}
           />
 
-          {quantity > 1 && (
+          {quantity >= 1 && (
             <span
               className="absolute -top-0.5 -right-0.5 w-5 h-5 text-xs flex items-center justify-center text-white bg-blue-600 rounded-full"
               aria-label={`Quantité: ${quantity}`}
@@ -73,7 +73,7 @@ const ItemShipping = memo(({ item }) => {
         <div className="flex justify-between items-baseline mt-1">
           <span className="text-xs text-gray-500">{formatPrice(total)}</span>
 
-          {quantity > 1 && (
+          {quantity >= 1 && (
             <span className="text-xs text-gray-400">
               {quantity} × {formatPrice(item?.price || 0)}
             </span>
