@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ShoppingBaket } from 'lucide-react'; // Icône pour panier vide
+import { ShoppingBag } from 'lucide-react'; // Icône pour panier vide
 
 // Chargement dynamique des composants
 const OrderItem = dynamic(() => import('./OrderItem'), {
@@ -243,7 +243,7 @@ const ListOrders = ({ orders }) => {
         // Aucune commande
         <div className="flex flex-col items-center p-8 bg-gray-50 rounded-lg border border-gray-200">
           <div className="w-16 h-16 flex items-center justify-center rounded-full bg-blue-100 mb-4">
-            <ShoppingBaket />
+            <ShoppingBag />
           </div>
           <h3 className="font-semibold text-lg mb-2">Aucune commande</h3>
           <p className="text-gray-600 text-center mb-4">
