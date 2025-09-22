@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShoppingBag } from 'lucide-react'; // Icône pour panier vide
+import { captureClientError } from '@/monitoring/sentry';
 
 // Chargement dynamique des composants
 const OrderItem = dynamic(() => import('./OrderItem'), {
@@ -75,70 +76,122 @@ const ListOrders = ({ orders }) => {
 
   // Filtrage et tri des commandes
   const filteredAndSortedOrders = useMemo(() => {
-    if (!hasOrders) return [];
+    try {
+      if (!hasOrders) return [];
 
-    let filtered = [...orders.orders];
+      let filtered = [...orders.orders];
 
-    // Filtrage par statut
-    if (filterStatus !== 'all') {
-      filtered = filtered.filter((order) => {
-        if (filterStatus === 'paid') return order.paymentStatus === 'paid';
-        if (filterStatus === 'unpaid') return order.paymentStatus === 'unpaid';
-        if (filterStatus === 'refunded')
-          return order.paymentStatus === 'refunded';
-        if (filterStatus === 'cancelled')
-          return order.paymentStatus === 'cancelled';
-        if (filterStatus === 'delivered')
-          return order.orderStatus === 'Delivered';
-        if (filterStatus === 'processing')
-          return order.orderStatus === 'Processing';
-        if (filterStatus === 'shipped') return order.orderStatus === 'Shipped';
-        return true;
+      // Filtrage par statut
+      if (filterStatus !== 'all') {
+        filtered = filtered.filter((order) => {
+          if (filterStatus === 'paid') return order.paymentStatus === 'paid';
+          if (filterStatus === 'unpaid')
+            return order.paymentStatus === 'unpaid';
+          if (filterStatus === 'refunded')
+            return order.paymentStatus === 'refunded';
+          if (filterStatus === 'cancelled')
+            return order.paymentStatus === 'cancelled';
+          if (filterStatus === 'delivered')
+            return order.orderStatus === 'Delivered';
+          if (filterStatus === 'processing')
+            return order.orderStatus === 'Processing';
+          if (filterStatus === 'shipped')
+            return order.orderStatus === 'Shipped';
+          return true;
+        });
+      }
+
+      // Tri par date
+      filtered.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
       });
+
+      return filtered;
+    } catch (error) {
+      // Monitoring : Erreur de traitement des données de commandes
+      captureClientError(error, 'ListOrders', 'filterAndSort', true, {
+        filterStatus,
+        sortOrder,
+        ordersCount: orders?.orders?.length || 0,
+        hasValidOrders: hasOrders,
+      });
+
+      // Fallback sur un tableau vide
+      return [];
     }
-
-    // Tri par date
-    filtered.sort((a, b) => {
-      const dateA = new Date(a.createdAt);
-      const dateB = new Date(b.createdAt);
-      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    });
-
-    return filtered;
   }, [hasOrders, orders?.orders, filterStatus, sortOrder]);
 
-  // Statistiques des commandes
+  // Dans le useMemo pour orderStats
   const orderStats = useMemo(() => {
-    if (!hasOrders)
-      return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
+    try {
+      if (!hasOrders)
+        return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
 
-    return orders.orders.reduce(
-      (stats, order) => {
-        stats.total++;
-        if (order.paymentStatus === 'paid') {
-          stats.paid++;
-          stats.totalAmount += order.totalAmount || 0;
-        }
-        if (order.paymentStatus === 'unpaid') stats.unpaid++;
-        if (order.orderStatus === 'Delivered') stats.delivered++;
-        return stats;
-      },
-      { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 },
-    );
+      return orders.orders.reduce(
+        (stats, order) => {
+          stats.total++;
+          if (order.paymentStatus === 'paid') {
+            stats.paid++;
+            stats.totalAmount += order.totalAmount || 0;
+          }
+          if (order.paymentStatus === 'unpaid') stats.unpaid++;
+          if (order.orderStatus === 'Delivered') stats.delivered++;
+          return stats;
+        },
+        { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 },
+      );
+    } catch (error) {
+      // Monitoring : Erreur de calcul des statistiques
+      captureClientError(error, 'ListOrders', 'calculateStats', true, {
+        ordersCount: orders?.orders?.length || 0,
+        hasValidOrders: hasOrders,
+      });
+
+      // Fallback sur des stats vides
+      return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
+    }
   }, [hasOrders, orders?.orders]);
 
-  // Naviguer vers une page spécifique
+  // Dans handlePageChange
   const handlePageChange = useCallback(
     (pageNumber) => {
       try {
+        // Validation des paramètres
+        if (!pageNumber || pageNumber < 1 || pageNumber > totalPages) {
+          const validationError = new Error(`Page invalide: ${pageNumber}`);
+          captureClientError(
+            validationError,
+            'ListOrders',
+            'pageValidation',
+            false,
+            {
+              requestedPage: pageNumber,
+              totalPages,
+              currentPage,
+            },
+          );
+          setError('Numéro de page invalide');
+          return;
+        }
+
         setIsLoading(true);
         router.push(`/me/orders?page=${pageNumber}`);
       } catch (err) {
+        // Monitoring : Erreur de navigation critique
+        captureClientError(err, 'ListOrders', 'navigationError', true, {
+          requestedPage: pageNumber,
+          currentPage,
+          totalPages,
+          errorMessage: err.message,
+        });
+
         setError('Erreur lors du changement de page');
         console.error('Error changing page:', err);
       }
     },
-    [router],
+    [router, currentPage, totalPages],
   );
 
   // Réinitialiser les états lors du changement de données
