@@ -90,6 +90,10 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
         return false;
       }
 
+      console.log('Triggering saveOnCheckout with:');
+      console.log('Cart:', cart);
+      console.log('Cart Total:', cartTotal);
+
       saveOnCheckout(cart, cartTotal);
 
       return true;
