@@ -33,28 +33,12 @@ export const OrderProvider = ({ children }) => {
 
       // Validation basique des montants
       if (validAmount < 0 || validTax < 0 || validTotal < 0) {
-        const validationError = new Error(
-          'Montants négatifs détectés dans saveOnCheckout',
-        );
-        captureClientError(
-          validationError,
-          'OrderContext',
-          'saveOnCheckout',
-          false,
-        );
+        console.log('Montants négatifs détectés dans saveOnCheckout');
         return;
       }
 
       if (!cart || !Array.isArray(cart) || cart.length === 0) {
-        const validationError = new Error(
-          'Panier vide ou invalide dans saveOnCheckout',
-        );
-        captureClientError(
-          validationError,
-          'OrderContext',
-          'saveOnCheckout',
-          false,
-        );
+        console.log('Panier vide ou invalide dans saveOnCheckout');
         return;
       }
 

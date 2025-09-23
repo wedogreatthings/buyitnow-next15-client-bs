@@ -195,7 +195,6 @@ const useCartOperations = () => {
   // Préparation au paiement - pas besoin de throttle ici
   const checkoutHandler = useCallback(() => {
     try {
-      console.log('Initiating checkout with cart total:', cartTotal);
       // Validation du panier avant checkout
       if (!cartTotal || cartTotal <= 0) {
         console.log('Panier vide ou montant invalide pour checkout');
