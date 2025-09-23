@@ -10,7 +10,6 @@ import {
 } from 'react';
 import dynamic from 'next/dynamic';
 import { toast } from 'react-toastify';
-import PropTypes from 'prop-types'; // Pour la validation des props
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -759,37 +758,5 @@ function ProductDetails({ product, sameCategoryProducts }) {
     </div>
   );
 }
-
-// Validation des props pour une meilleure robustesse
-ProductDetails.propTypes = {
-  product: PropTypes.shape({
-    _id: PropTypes.string,
-    name: PropTypes.string,
-    price: PropTypes.number,
-    oldPrice: PropTypes.number,
-    description: PropTypes.string,
-    stock: PropTypes.number,
-    sold: PropTypes.number,
-    createdAt: PropTypes.string,
-    images: PropTypes.arrayOf(
-      PropTypes.shape({
-        url: PropTypes.string,
-      }),
-    ),
-    category: PropTypes.shape({
-      _id: PropTypes.string,
-      categoryName: PropTypes.string,
-    }),
-    specifications: PropTypes.object,
-    verified: PropTypes.bool,
-  }),
-  sameCategoryProducts: PropTypes.array,
-};
-
-// Valeurs par défaut pour éviter les erreurs
-ProductDetails.defaultProps = {
-  product: null,
-  sameCategoryProducts: [],
-};
 
 export default memo(ProductDetails);
