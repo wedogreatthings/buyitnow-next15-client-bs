@@ -1,5 +1,6 @@
 // app/api/auth/forgot-password/route.js
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
 import { validateForgotPassword } from '@/helpers/validation/schemas/auth';
