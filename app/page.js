@@ -226,21 +226,22 @@ const getCategories = async () => {
 };
 
 const HomePage = async ({ searchParams }) => {
-  // Récupération des données avec fallback en cas d'erreur
-  const productsData = await getAllProducts(searchParams).catch(() => ({
-    data: { products: [], totalPages: 0 },
-  }));
-
-  const categories = await getCategories().catch(() => ({
-    categories: [],
-  }));
+  // Lance les deux promesses en parallèle
+  const [productsData, categoriesData] = await Promise.all([
+    getAllProducts(searchParams),
+    getCategories(),
+  ]).catch((err) => {
+    // Gère une erreur si l'une des promesses échoue
+    console.error('Failed to fetch initial data:', err);
+    return [{ data: { products: [], totalPages: 0 } }, { categories: [] }];
+  });
 
   return (
     <Suspense fallback={<ListProductsSkeleton />}>
       <main>
         <ListProducts
           data={productsData?.data}
-          categories={categories.categories}
+          categories={categoriesData.categories}
         />
       </main>
     </Suspense>
