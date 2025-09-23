@@ -37,6 +37,8 @@ export const OrderProvider = ({ children }) => {
         return;
       }
 
+      console.log('Cart at saveOnCheckout:', cart);
+
       if (!cart || !Array.isArray(cart) || cart.length === 0) {
         console.log('Panier vide ou invalide dans saveOnCheckout');
         return;
