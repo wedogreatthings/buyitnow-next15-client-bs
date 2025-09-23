@@ -91,7 +91,6 @@ const authOptions = {
 
           // ✅ AMÉLIORATION: Connexion réussie - Reset tentatives + update lastLogin
           await user.resetLoginAttempts();
-          console.log('Login successful for user:', email);
 
           // 5. Retourner l'utilisateur avec tous les champs utiles
           return {
@@ -136,7 +135,7 @@ const authOptions = {
 
   callbacks: {
     // ✅ AMÉLIORATION: Callback JWT enrichi
-    jwt: async ({ token, user, trigger }) => {
+    jwt: async ({ token, user }) => {
       if (user) {
         token.user = {
           _id: user._id,

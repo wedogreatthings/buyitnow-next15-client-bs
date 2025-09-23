@@ -361,7 +361,7 @@ export function withRateLimit(handler, options = {}) {
     skipWhitelist = false,
   } = options;
 
-  return async function rateLimitedHandler(req) {
+  return async function rateLimitedHandler(req, ...args) {
     try {
       const ip = rateLimiter.extractIP(req);
 
@@ -461,7 +461,7 @@ export function withRateLimit(handler, options = {}) {
       }
 
       // Exécuter le handler
-      const response = await handler(req);
+      const response = await handler(req, ...args);
 
       // Ajouter les headers de rate limit à la réponse
       if (response instanceof NextResponse) {
