@@ -5,6 +5,7 @@ import dbConnect from '@/backend/config/dbConnect';
 import User from '@/backend/models/user';
 import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { captureException } from '@/monitoring/sentry';
+import { withAuthRateLimit } from '@/utils/rateLimit';
 
 /**
  * Configuration NextAuth améliorée avec sécurité enterprise
@@ -252,8 +253,94 @@ const authOptions = {
   },
 };
 
-// Créer le handler NextAuth
-const handler = NextAuth(authOptions);
+// Créer le handler NextAuth de base
+const baseHandler = NextAuth(authOptions);
 
-// Export pour Next.js App Router
-export { handler as GET, handler as POST, authOptions as auth };
+/**
+ * ✅ NOUVEAU: Wrapper avec rate limiting pour les endpoints d'authentification
+ *
+ * NextAuth génère plusieurs endpoints:
+ * - POST /api/auth/signin - pour la connexion (le plus critique)
+ * - GET /api/auth/signout - pour la déconnexion
+ * - GET /api/auth/session - pour récupérer la session
+ * - GET /api/auth/csrf - pour le token CSRF
+ * - GET /api/auth/providers - pour lister les providers
+ *
+ * On applique le rate limiting sur tous, avec des limites adaptées
+ */
+
+// Handler GET avec rate limiting modéré (pour session, csrf, providers)
+export const GET = withAuthRateLimit(
+  async (...args) => {
+    return baseHandler(...args);
+  },
+  {
+    // Configuration plus permissive pour les GET (session checks fréquents)
+    customLimit: {
+      points: 30, // 30 requêtes
+      duration: 60000, // par minute
+      blockDuration: 60000, // blocage 1 minute si dépassement
+    },
+  },
+);
+
+// Handler POST avec rate limiting strict (pour signin)
+export const POST = withAuthRateLimit(
+  async (...args) => {
+    // Log pour monitoring des tentatives de connexion
+    try {
+      const req = args[0];
+      if (req && req.url && req.url.includes('/signin')) {
+        const body = await req.clone().text();
+        // Extraire l'email sans logger le mot de passe
+        const email = body.match(/email=([^&]*)/)?.[1];
+        if (email) {
+          console.log('[AUTH] Login attempt for:', decodeURIComponent(email));
+        }
+      }
+    } catch (err) {
+      // Ignorer les erreurs de logging
+    }
+
+    return baseHandler(...args);
+  },
+  {
+    // Configuration très stricte pour les POST (tentatives de connexion)
+    customLimit: {
+      points: 5, // Seulement 5 tentatives
+      duration: 900000, // par 15 minutes
+      blockDuration: 1800000, // blocage 30 minutes si dépassement
+    },
+  },
+);
+
+// Export de authOptions pour utilisation dans d'autres fichiers
+export { authOptions as auth };
+
+/**
+ * SÉCURITÉ MULTI-COUCHES:
+ *
+ * 1. Rate Limiting (rateLimit.js):
+ *    - IP-based: 5 tentatives / 15 min
+ *    - Blocage 30 min après dépassement
+ *    - Protection DDoS intégrée
+ *
+ * 2. Account Locking (User model):
+ *    - 5 tentatives par compte
+ *    - Verrouillage progressif
+ *    - Reset après connexion réussie
+ *
+ * 3. Validation (Yup):
+ *    - Format email valide
+ *    - Longueur mot de passe
+ *    - Sanitisation des entrées
+ *
+ * 4. Sécurité NextAuth:
+ *    - JWT signé avec secret
+ *    - Cookies httpOnly
+ *    - CSRF protection
+ *    - Session expiration
+ *
+ * Cette approche en couches garantit une protection maximale
+ * contre les attaques par force brute et les tentatives de compromission.
+ */
