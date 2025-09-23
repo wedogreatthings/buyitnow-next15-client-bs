@@ -6,6 +6,7 @@ import APIFilters from '@/backend/utils/APIFilters';
 import { captureException } from '@/monitoring/sentry';
 import { parseProductSearchParams } from '@/utils/inputSanitizer';
 import { validateProductFilters } from '@/helpers/validation/schemas/product';
+import { withApiRateLimit } from '@/utils/rateLimit';
 
 // Configuration simple
 const DEFAULT_PER_PAGE = 10;
@@ -14,8 +15,9 @@ const MAX_PER_PAGE = 50;
 /**
  * GET /api/products
  * Récupère la liste des produits avec filtres et pagination
+ * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
  */
-export async function GET(req) {
+export const GET = withApiRateLimit(async function (req) {
   try {
     // Connexion DB
     await dbConnect();
@@ -130,4 +132,4 @@ export async function GET(req) {
       { status },
     );
   }
-}
+});

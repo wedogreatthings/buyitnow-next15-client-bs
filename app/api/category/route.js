@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/backend/config/dbConnect';
 import Category from '@/backend/models/category';
 import { captureException } from '@/monitoring/sentry';
+import { withApiRateLimit } from '@/utils/rateLimit';
 
 /**
  * GET /api/category
  * Récupère toutes les catégories actives
+ * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
+ * Cache: 30min avec stale-while-revalidate de 1h
  */
-export async function GET() {
+export const GET = withApiRateLimit(async function (req) {
   try {
     // Connexion DB
     await dbConnect();
@@ -53,4 +56,4 @@ export async function GET() {
       { status: 500 },
     );
   }
-}
+});

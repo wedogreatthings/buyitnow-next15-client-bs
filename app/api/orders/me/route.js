@@ -7,12 +7,14 @@ import DeliveryPrice from '@/backend/models/deliveryPrice';
 import Address from '@/backend/models/address';
 import APIFilters from '@/backend/utils/APIFilters';
 import { captureException } from '@/monitoring/sentry';
+import { withApiRateLimit } from '@/utils/rateLimit';
 
 /**
  * GET /api/orders/me
  * Récupère l'historique des commandes de l'utilisateur connecté
+ * Rate limit: 120 req/min (authenticated) - Limite généreuse pour navigation de l'historique
  */
-export async function GET(req) {
+export const GET = withApiRateLimit(async function (req) {
   try {
     // Vérifier l'authentification
     await isAuthenticatedUser(req, NextResponse);
@@ -91,16 +93,21 @@ export async function GET(req) {
     console.error('Orders fetch error:', error.message);
 
     // Capturer seulement les vraies erreurs système
-    captureException(error, {
-      tags: { component: 'api', route: 'orders/me/GET' },
-    });
+    if (!error.message?.includes('authentication')) {
+      captureException(error, {
+        tags: { component: 'api', route: 'orders/me/GET' },
+      });
+    }
 
-    return NextResponse.json(
-      {
-        success: false,
-        message: 'Failed to fetch orders history',
-      },
-      { status: 500 },
-    );
+    // Gestion des erreurs d'authentification
+    let status = 500;
+    let message = 'Failed to fetch orders history';
+
+    if (error.message?.includes('authentication')) {
+      status = 401;
+      message = 'Authentication failed';
+    }
+
+    return NextResponse.json({ success: false, message }, { status });
   }
-}
+});

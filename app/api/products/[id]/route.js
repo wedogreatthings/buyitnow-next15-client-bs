@@ -3,13 +3,15 @@ import dbConnect from '@/backend/config/dbConnect';
 import Product from '@/backend/models/product';
 import Category from '@/backend/models/category';
 import { captureException } from '@/monitoring/sentry';
+import { withApiRateLimit } from '@/utils/rateLimit';
 
 /**
  * GET /api/products/[id]
  * Récupère un produit par son ID avec produits similaires
  * Optimisé pour ~500 visiteurs/jour
+ * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
  */
-export async function GET(req, { params }) {
+export const GET = withApiRateLimit(async function (req, { params }) {
   try {
     // Validation simple de l'ID MongoDB
     const { id } = params;
@@ -108,4 +110,4 @@ export async function GET(req, { params }) {
       { status: error.name === 'CastError' ? 400 : 500 },
     );
   }
-}
+});
