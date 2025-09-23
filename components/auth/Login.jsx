@@ -9,7 +9,7 @@ import { toast } from 'react-toastify';
 import { parseCallbackUrl } from '@/helpers/helpers';
 import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { LoaderCircle } from 'lucide-react';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 const Login = ({ csrfToken }) => {
   // États du formulaire

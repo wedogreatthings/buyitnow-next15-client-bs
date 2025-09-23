@@ -13,7 +13,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { validateForgotPassword } from '@/helpers/validation/schemas/auth';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 /**
  * Composant de demande de réinitialisation de mot de passe

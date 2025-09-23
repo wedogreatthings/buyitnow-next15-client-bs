@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 
 import AuthContext from '@/context/AuthContext';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 /**
  * UpdateAddress component for managing address modification and deletion

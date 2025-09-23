@@ -17,7 +17,7 @@ import {
   LoaderCircle,
 } from 'lucide-react';
 import { validateResetPassword } from '@/helpers/validation/schemas/auth';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 /**
  * Composant de réinitialisation de mot de passe avec token

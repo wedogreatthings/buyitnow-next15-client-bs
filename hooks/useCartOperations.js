@@ -1,6 +1,6 @@
 // hooks/useCartOperations.js
 import { useState, useContext, useMemo, useCallback } from 'react';
-import { captureClientError } from '@/monitoring/sentry'; // ✅ Méthode CLIENT
+import captureClientError from '@/monitoring/sentry'; // ✅ Méthode CLIENT
 import CartContext from '@/context/CartContext';
 import { DECREASE, INCREASE } from '@/helpers/constants';
 import { throttle } from '@/utils/performance';

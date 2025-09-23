@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShoppingBag } from 'lucide-react'; // Icône pour panier vide
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 // Chargement dynamique des composants
 const OrderItem = dynamic(() => import('./OrderItem'), {

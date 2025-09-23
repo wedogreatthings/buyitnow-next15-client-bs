@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'react-toastify';
 import { CheckCircle, LoaderCircle, Mail } from 'lucide-react';
 import AuthContext from '@/context/AuthContext';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 const Register = () => {
   // Contexte d'authentification

@@ -8,7 +8,7 @@ import DOMPurify from 'dompurify';
 import AuthContext from '@/context/AuthContext';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 /**
  * NewAddress component for managing address entry

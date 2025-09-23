@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { createContext, useState } from 'react';
 import { toast } from 'react-toastify';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 const AuthContext = createContext();
 

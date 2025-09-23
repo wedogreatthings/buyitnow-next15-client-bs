@@ -3,7 +3,7 @@
 import { useState, useContext, useRef, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import AuthContext from '@/context/AuthContext';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 /**
  * Formulaire de contact sécurisé avec validation avancée

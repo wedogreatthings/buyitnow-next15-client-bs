@@ -3,7 +3,7 @@
 import { createContext, useState, useCallback, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { DECREASE, INCREASE } from '@/helpers/constants';
-import { captureClientError } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 const CartContext = createContext();
 
