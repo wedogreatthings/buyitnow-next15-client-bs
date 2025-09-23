@@ -61,10 +61,9 @@ const Payment = () => {
   const submitAttempts = useRef(0);
 
   // Contextes
-  const { cart } = useContext(CartContext);
+  const { cart, cartTotal, cartCount } = useContext(CartContext);
 
   const {
-    checkoutInfo,
     orderInfo,
     setOrderInfo,
     addOrder,
@@ -80,7 +79,7 @@ const Payment = () => {
 
   // Calcul du montant total
   const totalAmount = useMemo(() => {
-    const baseAmount = Number(safeValue(checkoutInfo?.amount, 0));
+    const baseAmount = Number(safeValue(cartTotal?.toFixed(2), 0));
     const shipping = shippingStatus ? Number(safeValue(deliveryPrice, 0)) : 0;
     return (baseAmount + shipping).toFixed(2);
   }, [deliveryPrice, shippingStatus]);
@@ -114,7 +113,7 @@ const Payment = () => {
         router.prefetch('/confirmation');
 
         // Vérifier que les infos nécessaires sont présentes
-        if (!checkoutInfo || !orderInfo || !orderInfo.orderItems) {
+        if (!cartTotal || !orderInfo || !orderInfo.orderItems) {
           toast.error('Informations de commande incomplètes', {
             position: 'bottom-right',
             autoClose: 5000,
@@ -330,8 +329,8 @@ const Payment = () => {
       const finalOrderInfo = {
         ...orderInfo,
         paymentInfo,
-        taxAmount: checkoutInfo?.tax,
-        totalAmount: checkoutInfo?.totalAmount,
+        taxAmount: 0,
+        totalAmount: cartTotal?.toFixed(2) || 0,
         shippingAmount: shippingStatus ? deliveryPrice : 0,
       };
 
@@ -378,7 +377,6 @@ const Payment = () => {
     shippingStatus,
     totalAmount,
     orderInfo,
-    checkoutInfo,
     deliveryPrice,
     addOrder,
   ]);
@@ -389,7 +387,7 @@ const Payment = () => {
   }
 
   // Rendu conditionnel pour le cas où le panier est vide
-  if (!cart || !Array.isArray(cart) || cart.length === 0) {
+  if (!cart || !Array.isArray(cart) || cartCount === 0) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="flex flex-col items-center justify-center">
@@ -520,7 +518,7 @@ const Payment = () => {
                   <div className="flex justify-between text-gray-600">
                     <span>Total du panier:</span>
                     <span>
-                      {formatPrice(Number(safeValue(checkoutInfo?.amount, 0)))}
+                      {formatPrice(Number(safeValue(cartTotal?.toFixed(2), 0)))}
                     </span>
                   </div>
 

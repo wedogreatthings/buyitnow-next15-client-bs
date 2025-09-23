@@ -207,7 +207,7 @@ const Shipping = ({ initialData }) => {
   }, [selectedAddress]);
 
   // Rendu pour le cas où aucun panier n'existe
-  if (!cart || !Array.isArray(cart) || cart.length === 0) {
+  if (!cart || !Array.isArray(cart) || cartCount === 0) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <div className="flex flex-col items-center justify-center">
@@ -305,6 +305,7 @@ const Shipping = ({ initialData }) => {
             <aside className="md:w-1/3">
               <OrderSummary
                 cart={cart}
+                cartCount={cartCount}
                 baseAmount={safeValue(cartTotal.toFixed(2), 0)}
                 deliveryPrice={deliveryPrice}
                 totalAmount={totalAmount}
@@ -382,7 +383,13 @@ AddressCard.displayName = 'AddressCard';
 
 // Composant de résumé de commande
 const OrderSummary = memo(
-  ({ cart = [], baseAmount = 0, deliveryPrice = 0, totalAmount = 0 }) => (
+  ({
+    cart = [],
+    cartCount,
+    baseAmount = 0,
+    deliveryPrice = 0,
+    totalAmount = 0,
+  }) => (
     <div className="bg-white shadow rounded-lg p-6 sticky top-24">
       <h2 className="font-semibold text-lg mb-4 pb-2 border-b">
         Récapitulatif de commande
@@ -407,11 +414,11 @@ const OrderSummary = memo(
 
       <div className="border-t border-gray-200 pt-4 mt-4">
         <h3 className="font-medium text-gray-800 mb-3">
-          Produits ({Array.isArray(cart) ? cart.length : 0})
+          Produits ({Array.isArray(cart) ? cartCount : 0})
         </h3>
 
         <div className="space-y-3 max-h-80 overflow-auto pr-2 hide-scrollbar">
-          {Array.isArray(cart) && cart.length > 0 ? (
+          {Array.isArray(cart) && cartCount > 0 ? (
             cart.map((item) => (
               <ItemShipping key={item.id || item._id} item={item} />
             ))
