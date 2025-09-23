@@ -367,7 +367,7 @@ export function withRateLimit(handler, options = {}) {
 
       // Skip pour whitelist (sauf si explicitement désactivé)
       if (!skipWhitelist && rateLimiter.whitelist.has(ip)) {
-        return handler(req);
+        return handler(req, ...args);
       }
 
       // Vérifier si IP bloquée
@@ -500,7 +500,7 @@ export function withRateLimit(handler, options = {}) {
       });
 
       // En cas d'erreur, laisser passer la requête
-      return handler(req);
+      return handler(req, ...args);
     }
   };
 }
