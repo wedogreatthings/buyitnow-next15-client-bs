@@ -107,7 +107,7 @@ export const POST = withApiRateLimit(
       // Capturer seulement les vraies erreurs système
       if (!error.message?.includes('authentication')) {
         captureException(error, {
-          tags: { component: 'api', route: 'emails/POST' },
+          tags: { component: 'api', route: 'email/POST' },
         });
       }
 
