@@ -14,7 +14,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { captureException } from '@/monitoring/sentry';
-import captureClientError from '@/monitoring/sentry';
 
 // Imports optimisés
 import CartContext from '@/context/CartContext';
@@ -59,15 +58,13 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
   const initialized = useRef(false);
   const hasRedirected = useRef(false);
 
-  const { cart, cartTotal } = useContext(CartContext);
+  const { cart, cartTotal, cartCount } = useContext(CartContext);
   const {
-    checkoutInfo,
     setOrderInfo,
     setAddresses,
     setPaymentTypes,
     setShippingStatus,
     setDeliveryPrice,
-    saveOnCheckout,
   } = useContext(OrderContext);
 
   const router = useRouter();
@@ -81,33 +78,6 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
     ],
     [],
   );
-
-  useEffect(() => {
-    try {
-      // Validation du panier avant checkout
-      if (!cartTotal || cartTotal <= 0) {
-        console.log('Panier vide ou montant invalide pour checkout');
-        return false;
-      }
-
-      console.log('Triggering saveOnCheckout with:');
-      console.log('Cart:', cart);
-      console.log('Cart Total:', cartTotal);
-
-      saveOnCheckout(cart, cartTotal);
-
-      return true;
-    } catch (error) {
-      console.error('Erreur lors du checkout:', error);
-
-      // Monitoring critique pour échec checkout
-      captureClientError(error, 'useCartOperations', 'checkoutHandler', true, {
-        cartTotal,
-      });
-
-      return false;
-    }
-  }, []);
 
   // Vérification et configuration des données au montage du composant
   useEffect(() => {
@@ -239,7 +209,12 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
             </main>
 
             <aside className="md:w-1/3">
-              <OrderSummary checkoutInfo={checkoutInfo} cart={cart} />
+              <OrderSummary
+                cartTotal={cartTotal}
+                cartCount={cartCount}
+                cart={cart}
+                tax={0}
+              />
             </aside>
           </div>
         </div>
@@ -281,13 +256,8 @@ const DeliveryOption = memo(({ href, onClick, text, color, icon }) => {
 DeliveryOption.displayName = 'DeliveryOption';
 
 // Composant de résumé de commande
-const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
-  console.log('OrderSummary render with checkoutInfo:', checkoutInfo);
+const OrderSummary = memo(({ cartTotal, cartCount, cart = [], tax }) => {
   // Calcul du montant total formaté
-  const formattedAmount = useMemo(() => {
-    const amount = checkoutInfo?.amount || 0;
-    return typeof amount === 'number' ? amount.toFixed(2) : '0.00';
-  }, [checkoutInfo]);
 
   return (
     <div className="bg-white shadow rounded-lg p-6 sticky top-24">
@@ -296,16 +266,16 @@ const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
       </h2>
 
       <ul className="space-y-1 mb-6">
-        {checkoutInfo?.tax > 0 && (
+        {tax > 0 && (
           <li className="flex justify-between text-gray-600">
             <span>Taxes:</span>
-            <span>$ {Number(checkoutInfo.tax).toFixed(2)}</span>
+            <span>$ {Number(tax).toFixed(2)}</span>
           </li>
         )}
 
         <li className="flex justify-between text-lg font-bold text-gray-800 border-t pt-4 mt-3">
           <span>Total:</span>
-          <span>$ {formattedAmount}</span>
+          <span>$ {tax > 0 ? cartTotal + tax : cartTotal}</span>
         </li>
       </ul>
 
@@ -315,7 +285,7 @@ const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
         </h3>
 
         <div className="space-y-3 max-h-80 overflow-auto pr-2 hide-scrollbar">
-          {Array.isArray(cart) && cart.length > 0 ? (
+          {Array.isArray(cart) && cartCount > 0 ? (
             cart.map((item) => <ItemShipping key={item.id} item={item} />)
           ) : (
             <p className="text-gray-500 text-sm italic py-2">
