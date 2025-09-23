@@ -5,13 +5,13 @@
  * Features 2025:
  * - Algorithme Sliding Window Log pour une précision optimale
  * - LRU Cache pour limiter la consommation mémoire
- * - Headers standard RFC 6585 et draft-ietf-httpapi-ratelimit
+ * - Headers conformes IETF draft-ietf-httpapi-ratelimit-headers-09
  * - Protection DDoS avec détection de patterns d'attaque
  * - Support différencié par rôle utilisateur
  * - Métriques exportables vers Sentry
  *
- * @version 2.0.0
- * @date 2025-09-22
+ * @version 2.1.0
+ * @date 2025-09-23
  */
 
 import { NextResponse } from 'next/server';
@@ -445,15 +445,16 @@ export function withRateLimit(handler, options = {}) {
           {
             status: 429,
             headers: {
+              // Headers legacy pour rétrocompatibilité
               'X-RateLimit-Limit': limit.points.toString(),
               'X-RateLimit-Remaining': '0',
               'X-RateLimit-Reset': new Date(result.resetAt).toISOString(),
               'Retry-After': result.retryAfter.toString(),
-              // Headers draft-ietf-httpapi-ratelimit (2025 standard)
+              // Headers IETF draft-ietf-httpapi-ratelimit-headers-09 (2025 standard)
               'RateLimit-Limit': limit.points.toString(),
               'RateLimit-Remaining': '0',
               'RateLimit-Reset': result.retryAfter.toString(),
-              'RateLimit-Policy': `${limit.points};w=${limit.duration / 1000}`,
+              'RateLimit-Policy': `"default";q=${limit.points};w=${limit.duration / 1000}`,
             },
           },
         );
@@ -464,6 +465,7 @@ export function withRateLimit(handler, options = {}) {
 
       // Ajouter les headers de rate limit à la réponse
       if (response instanceof NextResponse) {
+        // Headers legacy pour rétrocompatibilité
         response.headers.set('X-RateLimit-Limit', limit.points.toString());
         response.headers.set(
           'X-RateLimit-Remaining',
@@ -473,7 +475,7 @@ export function withRateLimit(handler, options = {}) {
           'X-RateLimit-Reset',
           new Date(result.resetAt).toISOString(),
         );
-        // Headers modernes
+        // Headers IETF draft-ietf-httpapi-ratelimit-headers-09 (2025)
         response.headers.set('RateLimit-Limit', limit.points.toString());
         response.headers.set(
           'RateLimit-Remaining',
@@ -482,6 +484,10 @@ export function withRateLimit(handler, options = {}) {
         response.headers.set(
           'RateLimit-Reset',
           Math.ceil(result.resetAt / 1000).toString(),
+        );
+        response.headers.set(
+          'RateLimit-Policy',
+          `"default";q=${limit.points};w=${limit.duration / 1000}`,
         );
       }
 
