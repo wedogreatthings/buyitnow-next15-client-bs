@@ -6,12 +6,14 @@ import isAuthenticatedUser from '@/backend/middlewares/auth';
 import { validateAddress } from '@/helpers/validation/schemas/address';
 import { sanitizeAddress } from '@/utils/addressSanitizer';
 import { captureException } from '@/monitoring/sentry';
+import { withApiRateLimit } from '@/utils/rateLimit';
 
 /**
  * GET /api/address/[id]
  * Récupère une adresse spécifique
+ * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
  */
-export async function GET(req, { params }) {
+export const GET = withApiRateLimit(async function (req, { params }) {
   try {
     // Vérifier l'authentification
     await isAuthenticatedUser(req, NextResponse);
@@ -80,206 +82,226 @@ export async function GET(req, { params }) {
       { status: error.name === 'CastError' ? 400 : 500 },
     );
   }
-}
+});
 
 /**
  * PUT /api/address/[id]
  * Met à jour une adresse
+ * Rate limit: 20 modifications par 5 minutes (protection contre les modifications abusives)
  */
-export async function PUT(req, { params }) {
-  try {
-    // Vérifier l'authentification
-    await isAuthenticatedUser(req, NextResponse);
-
-    // Connexion DB
-    await dbConnect();
-
-    // Validation de l'ID
-    const { id } = params;
-    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid address ID' },
-        { status: 400 },
-      );
-    }
-
-    // Récupérer l'utilisateur
-    const user = await User.findOne({ email: req.user.email }).select('_id');
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 },
-      );
-    }
-
-    // Parser et sanitiser les données
-    let addressData;
+export const PUT = withApiRateLimit(
+  async function (req, { params }) {
     try {
-      const rawData = await req.json();
-      addressData = sanitizeAddress(rawData);
-    } catch (error) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid request body' },
-        { status: 400 },
-      );
-    }
+      // Vérifier l'authentification
+      await isAuthenticatedUser(req, NextResponse);
 
-    // Valider avec Yup
-    const validation = await validateAddress(addressData);
-    if (!validation.isValid) {
+      // Connexion DB
+      await dbConnect();
+
+      // Validation de l'ID
+      const { id } = params;
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid address ID' },
+          { status: 400 },
+        );
+      }
+
+      // Récupérer l'utilisateur
+      const user = await User.findOne({ email: req.user.email }).select('_id');
+      if (!user) {
+        return NextResponse.json(
+          { success: false, message: 'User not found' },
+          { status: 404 },
+        );
+      }
+
+      // Parser et sanitiser les données
+      let addressData;
+      try {
+        const rawData = await req.json();
+        addressData = sanitizeAddress(rawData);
+      } catch (error) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid request body' },
+          { status: 400 },
+        );
+      }
+
+      // Valider avec Yup
+      const validation = await validateAddress(addressData);
+      if (!validation.isValid) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: 'Validation failed',
+            errors: validation.errors,
+          },
+          { status: 400 },
+        );
+      }
+
+      // Vérifier que l'adresse existe et appartient à l'utilisateur
+      const existingAddress = await Address.findById(id);
+      if (!existingAddress) {
+        return NextResponse.json(
+          { success: false, message: 'Address not found' },
+          { status: 404 },
+        );
+      }
+
+      if (existingAddress.user.toString() !== user._id.toString()) {
+        return NextResponse.json(
+          { success: false, message: 'Unauthorized' },
+          { status: 403 },
+        );
+      }
+
+      // Si c'est la nouvelle adresse par défaut, désactiver les autres
+      if (validation.data.isDefault === true) {
+        await Address.updateMany(
+          { user: user._id, isDefault: true, _id: { $ne: id } },
+          { isDefault: false },
+        );
+      }
+
+      // Mettre à jour l'adresse
+      const updatedAddress = await Address.findByIdAndUpdate(
+        id,
+        { ...validation.data, user: user._id },
+        { new: true, runValidators: true },
+      );
+
       return NextResponse.json(
         {
-          success: false,
-          message: 'Validation failed',
-          errors: validation.errors,
+          success: true,
+          data: { address: updatedAddress },
+          message: 'Address updated successfully',
         },
-        { status: 400 },
+        { status: 200 },
       );
+    } catch (error) {
+      console.error('PUT address error:', error.message);
+
+      // Capturer seulement les vraies erreurs système
+      if (error.name !== 'ValidationError' && error.name !== 'CastError') {
+        captureException(error, {
+          tags: { component: 'api', route: 'address/[id]/PUT' },
+        });
+      }
+
+      // Gestion simple des erreurs
+      let status = 500;
+      let message = 'Something went wrong';
+
+      if (error.name === 'ValidationError') {
+        status = 400;
+        message = 'Invalid address data';
+      } else if (error.name === 'CastError') {
+        status = 400;
+        message = 'Invalid address ID format';
+      } else if (error.code === 11000) {
+        status = 409;
+        message = 'This address already exists';
+      }
+
+      return NextResponse.json({ success: false, message }, { status });
     }
-
-    // Vérifier que l'adresse existe et appartient à l'utilisateur
-    const existingAddress = await Address.findById(id);
-    if (!existingAddress) {
-      return NextResponse.json(
-        { success: false, message: 'Address not found' },
-        { status: 404 },
-      );
-    }
-
-    if (existingAddress.user.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 403 },
-      );
-    }
-
-    // Si c'est la nouvelle adresse par défaut, désactiver les autres
-    if (validation.data.isDefault === true) {
-      await Address.updateMany(
-        { user: user._id, isDefault: true, _id: { $ne: id } },
-        { isDefault: false },
-      );
-    }
-
-    // Mettre à jour l'adresse
-    const updatedAddress = await Address.findByIdAndUpdate(
-      id,
-      { ...validation.data, user: user._id },
-      { new: true, runValidators: true },
-    );
-
-    return NextResponse.json(
-      {
-        success: true,
-        data: { address: updatedAddress },
-        message: 'Address updated successfully',
-      },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error('PUT address error:', error.message);
-
-    // Capturer seulement les vraies erreurs système
-    if (error.name !== 'ValidationError' && error.name !== 'CastError') {
-      captureException(error, {
-        tags: { component: 'api', route: 'address/[id]/PUT' },
-      });
-    }
-
-    // Gestion simple des erreurs
-    let status = 500;
-    let message = 'Something went wrong';
-
-    if (error.name === 'ValidationError') {
-      status = 400;
-      message = 'Invalid address data';
-    } else if (error.name === 'CastError') {
-      status = 400;
-      message = 'Invalid address ID format';
-    } else if (error.code === 11000) {
-      status = 409;
-      message = 'This address already exists';
-    }
-
-    return NextResponse.json({ success: false, message }, { status });
-  }
-}
+  },
+  {
+    customLimit: {
+      points: 20, // 20 modifications maximum
+      duration: 300000, // par période de 5 minutes
+      blockDuration: 600000, // blocage de 10 minutes en cas de dépassement
+    },
+  },
+);
 
 /**
  * DELETE /api/address/[id]
  * Supprime une adresse
+ * Rate limit: 5 suppressions par 5 minutes (protection contre les suppressions abusives)
  */
-export async function DELETE(req, { params }) {
-  try {
-    // Vérifier l'authentification
-    await isAuthenticatedUser(req, NextResponse);
+export const DELETE = withApiRateLimit(
+  async function (req, { params }) {
+    try {
+      // Vérifier l'authentification
+      await isAuthenticatedUser(req, NextResponse);
 
-    // Connexion DB
-    await dbConnect();
+      // Connexion DB
+      await dbConnect();
 
-    // Validation de l'ID
-    const { id } = params;
-    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      // Validation de l'ID
+      const { id } = params;
+      if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid address ID' },
+          { status: 400 },
+        );
+      }
+
+      // Récupérer l'utilisateur
+      const user = await User.findOne({ email: req.user.email }).select('_id');
+      if (!user) {
+        return NextResponse.json(
+          { success: false, message: 'User not found' },
+          { status: 404 },
+        );
+      }
+
+      // Vérifier que l'adresse existe et appartient à l'utilisateur
+      const address = await Address.findById(id);
+      if (!address) {
+        return NextResponse.json(
+          { success: false, message: 'Address not found' },
+          { status: 404 },
+        );
+      }
+
+      if (address.user.toString() !== user._id.toString()) {
+        return NextResponse.json(
+          { success: false, message: 'Unauthorized' },
+          { status: 403 },
+        );
+      }
+
+      // Supprimer l'adresse
+      await Address.findByIdAndDelete(id);
+
       return NextResponse.json(
-        { success: false, message: 'Invalid address ID' },
-        { status: 400 },
+        {
+          success: true,
+          message: 'Address deleted successfully',
+        },
+        { status: 200 },
+      );
+    } catch (error) {
+      console.error('DELETE address error:', error.message);
+
+      // Capturer seulement les vraies erreurs système
+      if (error.name !== 'ValidationError' && error.name !== 'CastError') {
+        captureException(error, {
+          tags: { component: 'api', route: 'address/[id]/DELETE' },
+        });
+      }
+
+      return NextResponse.json(
+        {
+          success: false,
+          message:
+            error.name === 'CastError'
+              ? 'Invalid address ID format'
+              : 'Something went wrong',
+        },
+        { status: error.name === 'CastError' ? 400 : 500 },
       );
     }
-
-    // Récupérer l'utilisateur
-    const user = await User.findOne({ email: req.user.email }).select('_id');
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'User not found' },
-        { status: 404 },
-      );
-    }
-
-    // Vérifier que l'adresse existe et appartient à l'utilisateur
-    const address = await Address.findById(id);
-    if (!address) {
-      return NextResponse.json(
-        { success: false, message: 'Address not found' },
-        { status: 404 },
-      );
-    }
-
-    if (address.user.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
-        { status: 403 },
-      );
-    }
-
-    // Supprimer l'adresse
-    await Address.findByIdAndDelete(id);
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Address deleted successfully',
-      },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error('DELETE address error:', error.message);
-
-    // Capturer seulement les vraies erreurs système
-    if (error.name !== 'ValidationError' && error.name !== 'CastError') {
-      captureException(error, {
-        tags: { component: 'api', route: 'address/[id]/DELETE' },
-      });
-    }
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error.name === 'CastError'
-            ? 'Invalid address ID format'
-            : 'Something went wrong',
-      },
-      { status: error.name === 'CastError' ? 400 : 500 },
-    );
-  }
-}
+  },
+  {
+    customLimit: {
+      points: 5, // 5 suppressions maximum
+      duration: 300000, // par période de 5 minutes
+      blockDuration: 1800000, // blocage de 30 minutes en cas de dépassement (plus strict pour les suppressions)
+    },
+  },
+);
