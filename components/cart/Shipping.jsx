@@ -59,13 +59,12 @@ const Shipping = ({ initialData }) => {
   const initialized = useRef(false);
 
   // Contextes
-  const { cart } = useContext(CartContext);
+  const { cart, cartTotal, cartCount } = useContext(CartContext);
   const {
     addresses,
     paymentTypes,
     shippingInfo,
     deliveryPrice,
-    checkoutInfo,
     setShippingInfo,
     setAddresses,
     setPaymentTypes,
@@ -85,17 +84,12 @@ const Shipping = ({ initialData }) => {
 
   // Calculer le montant total avec livraison
   const totalAmount = useMemo(() => {
-    const baseAmount =
-      typeof checkoutInfo?.amount === 'number'
-        ? checkoutInfo.amount
-        : parseFloat(checkoutInfo?.amount || 0);
-
     const delivery =
       typeof deliveryPrice === 'number'
         ? deliveryPrice
         : parseFloat(deliveryPrice || 0);
 
-    return Number((baseAmount + delivery).toFixed(2));
+    return Number((cartTotal + delivery).toFixed(2));
   }, [deliveryPrice]);
 
   // Initialisation des données
@@ -311,7 +305,7 @@ const Shipping = ({ initialData }) => {
             <aside className="md:w-1/3">
               <OrderSummary
                 cart={cart}
-                baseAmount={safeValue(checkoutInfo?.amount, 0)}
+                baseAmount={safeValue(cartTotal.toFixed(2), 0)}
                 deliveryPrice={deliveryPrice}
                 totalAmount={totalAmount}
               />
