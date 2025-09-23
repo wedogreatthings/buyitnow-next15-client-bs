@@ -253,6 +253,7 @@ DeliveryOption.displayName = 'DeliveryOption';
 
 // Composant de résumé de commande
 const OrderSummary = memo(({ checkoutInfo, cart = [] }) => {
+  console.log('OrderSummary render with checkoutInfo:', checkoutInfo);
   // Calcul du montant total formaté
   const formattedAmount = useMemo(() => {
     const amount = checkoutInfo?.amount || 0;
