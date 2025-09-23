@@ -1,5 +1,5 @@
 import AuthSuccessContent from '@/components/auth/AuthSuccessContent';
-import { Suspense } from 'next';
+import { Suspense } from 'react';
 
 // Métadonnées pour SEO
 export const metadata = {
