@@ -4,7 +4,7 @@ import { memo } from 'react';
 import Link from 'next/link';
 import { formatPrice } from '@/helpers/helpers';
 
-const CartSummary = memo(({ cartItems, amount, onCheckout }) => {
+const CartSummary = memo(({ cartItems, amount }) => {
   const totalUnits = cartItems.reduce((acc, item) => acc + item?.quantity, 0);
 
   return (
@@ -33,7 +33,6 @@ const CartSummary = memo(({ cartItems, amount, onCheckout }) => {
 
         <div className="space-y-3">
           <Link
-            onClick={onCheckout}
             href="/shipping-choice"
             className="px-4 py-3 inline-block text-sm font-medium w-full text-center text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-sm"
             title="Continuer vers la livraison"

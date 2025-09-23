@@ -4,11 +4,9 @@ import captureClientError from '@/monitoring/sentry'; // ✅ Méthode CLIENT
 import CartContext from '@/context/CartContext';
 import { DECREASE, INCREASE } from '@/helpers/constants';
 import { throttle } from '@/utils/performance';
-import OrderContext from '@/context/OrderContext';
 
 const useCartOperations = () => {
   const { updateCart, deleteItemFromCart } = useContext(CartContext);
-  const { saveOnCheckout } = useContext(OrderContext);
 
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [itemBeingRemoved, setItemBeingRemoved] = useState(null);
@@ -191,57 +189,12 @@ const useCartOperations = () => {
     [handleDeleteItemBase],
   );
 
-  // Préparation au paiement - pas besoin de throttle ici
-  const checkoutHandler = useCallback(
-    (cart, cartTotal) => {
-      try {
-        // Validation du panier avant checkout
-        if (!cartTotal || cartTotal <= 0) {
-          console.log('Panier vide ou montant invalide pour checkout');
-          return false;
-        }
-
-        const checkoutData = {
-          amount: cartTotal.toFixed(2),
-          tax: 0,
-          totalAmount: cartTotal.toFixed(2),
-        };
-
-        saveOnCheckout(
-          cart,
-          checkoutData.amount,
-          checkoutData.tax,
-          checkoutData.totalAmount,
-        );
-
-        return true;
-      } catch (error) {
-        console.error('Erreur lors du checkout:', error);
-
-        // Monitoring critique pour échec checkout
-        captureClientError(
-          error,
-          'useCartOperations',
-          'checkoutHandler',
-          true,
-          {
-            cartTotal,
-          },
-        );
-
-        return false;
-      }
-    },
-    [saveOnCheckout],
-  );
-
   return {
     deleteInProgress,
     itemBeingRemoved,
     increaseQty, // Déjà throttlée + monitoring
     decreaseQty, // Déjà throttlée + monitoring
     handleDeleteItem, // Déjà throttlée + monitoring
-    checkoutHandler, // Avec monitoring
   };
 };
 

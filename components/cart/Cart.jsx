@@ -41,7 +41,6 @@ const Cart = () => {
     increaseQty,
     decreaseQty,
     handleDeleteItem,
-    checkoutHandler,
   } = useCartOperations();
 
   // Ajoutons un useRef pour suivre si une requête de chargement est en cours
@@ -88,10 +87,6 @@ const Cart = () => {
     };
   }, [setCartToState, initialLoadComplete]);
 
-  const handleCheckout = () => {
-    checkoutHandler(cart, cartTotal);
-  };
-
   // Afficher un écran de chargement pendant le chargement initial
   if (!initialLoadComplete) {
     return <CartSkeleton />;
@@ -122,11 +117,7 @@ const Cart = () => {
 
               {/* Résumé du panier */}
               {cart?.length > 0 && (
-                <CartSummary
-                  cartItems={cart}
-                  amount={cartTotal}
-                  onCheckout={handleCheckout}
-                />
+                <CartSummary cartItems={cart} amount={cartTotal} />
               )}
             </div>
           )}

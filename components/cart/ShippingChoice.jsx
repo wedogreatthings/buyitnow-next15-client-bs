@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import { captureException } from '@/monitoring/sentry';
+import captureClientError from '@/monitoring/sentry';
 
 // Imports optimisés
 import CartContext from '@/context/CartContext';
@@ -58,7 +59,7 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
   const initialized = useRef(false);
   const hasRedirected = useRef(false);
 
-  const { cart } = useContext(CartContext);
+  const { cart, cartTotal } = useContext(CartContext);
   const {
     checkoutInfo,
     setOrderInfo,
@@ -66,6 +67,7 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
     setPaymentTypes,
     setShippingStatus,
     setDeliveryPrice,
+    saveOnCheckout,
   } = useContext(OrderContext);
 
   const router = useRouter();
@@ -79,6 +81,29 @@ const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
     ],
     [],
   );
+
+  useEffect(() => {
+    try {
+      // Validation du panier avant checkout
+      if (!cartTotal || cartTotal <= 0) {
+        console.log('Panier vide ou montant invalide pour checkout');
+        return false;
+      }
+
+      saveOnCheckout(cart, cartTotal);
+
+      return true;
+    } catch (error) {
+      console.error('Erreur lors du checkout:', error);
+
+      // Monitoring critique pour échec checkout
+      captureClientError(error, 'useCartOperations', 'checkoutHandler', true, {
+        cartTotal,
+      });
+
+      return false;
+    }
+  }, []);
 
   // Vérification et configuration des données au montage du composant
   useEffect(() => {

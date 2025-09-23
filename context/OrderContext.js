@@ -25,26 +25,25 @@ export const OrderProvider = ({ children }) => {
   const router = useRouter();
 
   // Méthodes simples déjà OK
-  const saveOnCheckout = ({ cart, amount, tax = 0, totalAmount }) => {
+  const saveOnCheckout = ({ cart, cartTotal, tax = 0 }) => {
     try {
-      const validAmount = parseFloat(amount) || 0;
-      const validTax = parseFloat(tax) || 0;
-      const validTotal = parseFloat(totalAmount) || validAmount + validTax;
-
-      // Validation basique des montants
-      if (validAmount < 0 || validTax < 0 || validTotal < 0) {
-        console.log('Montants négatifs détectés dans saveOnCheckout');
-        return;
-      }
-
       if (!cart || !Array.isArray(cart) || cart.length === 0) {
         console.log('Panier vide ou invalide dans saveOnCheckout');
         return;
       }
 
+      // Validation basique des montants
+      if (cartTotal < 0 || cartTotal < 0) {
+        console.log('Montants négatifs détectés dans saveOnCheckout');
+        return;
+      }
+
+      const validAmount = parseFloat(cartTotal.toFixed(2)) || 0;
+      const validTotal = validAmount + tax || 0;
+
       setCheckoutInfo({
         amount: validAmount,
-        tax: validTax,
+        tax,
         totalAmount: validTotal,
         items: cart,
         timestamp: Date.now(),
