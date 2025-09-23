@@ -7,7 +7,8 @@ import { throttle } from '@/utils/performance';
 import OrderContext from '@/context/OrderContext';
 
 const useCartOperations = () => {
-  const { updateCart, deleteItemFromCart, cartTotal } = useContext(CartContext);
+  const { cart, updateCart, deleteItemFromCart, cartTotal } =
+    useContext(CartContext);
   const { saveOnCheckout } = useContext(OrderContext);
 
   const [deleteInProgress, setDeleteInProgress] = useState(false);
@@ -194,6 +195,7 @@ const useCartOperations = () => {
   // Préparation au paiement - pas besoin de throttle ici
   const checkoutHandler = useCallback(() => {
     try {
+      console.log('Initiating checkout with cart total:', cartTotal);
       // Validation du panier avant checkout
       if (!cartTotal || cartTotal <= 0) {
         const checkoutError = new Error(
@@ -217,7 +219,12 @@ const useCartOperations = () => {
         totalAmount: cartTotal.toFixed(2),
       };
 
-      saveOnCheckout(checkoutData);
+      saveOnCheckout(
+        cart,
+        checkoutData.amount,
+        checkoutData.tax,
+        checkoutData.totalAmount,
+      );
 
       // Log succès checkout (non-critique mais utile)
       captureClientError(
