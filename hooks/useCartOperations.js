@@ -207,6 +207,8 @@ const useCartOperations = () => {
         totalAmount: cartTotal.toFixed(2),
       };
 
+      console.log('Cart at checkoutHandler:', cart);
+
       saveOnCheckout(
         cart,
         checkoutData.amount,
