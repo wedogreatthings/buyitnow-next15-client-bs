@@ -198,18 +198,7 @@ const useCartOperations = () => {
       console.log('Initiating checkout with cart total:', cartTotal);
       // Validation du panier avant checkout
       if (!cartTotal || cartTotal <= 0) {
-        const checkoutError = new Error(
-          'Panier vide ou montant invalide pour checkout',
-        );
-        captureClientError(
-          checkoutError,
-          'useCartOperations',
-          'checkoutHandler',
-          true,
-          {
-            cartTotal,
-          },
-        );
+        console.log('Panier vide ou montant invalide pour checkout');
         return false;
       }
 
@@ -224,19 +213,6 @@ const useCartOperations = () => {
         checkoutData.amount,
         checkoutData.tax,
         checkoutData.totalAmount,
-      );
-
-      // Log succès checkout (non-critique mais utile)
-      captureClientError(
-        new Error('Checkout initié avec succès'),
-        'useCartOperations',
-        'checkoutHandler',
-        false,
-        {
-          amount: checkoutData.amount,
-          totalAmount: checkoutData.totalAmount,
-          action: 'checkout_success',
-        },
       );
 
       return true;
