@@ -88,6 +88,10 @@ const Cart = () => {
     };
   }, [setCartToState, initialLoadComplete]);
 
+  const handleCheckout = () => {
+    checkoutHandler(cart, cartTotal);
+  };
+
   // Afficher un écran de chargement pendant le chargement initial
   if (!initialLoadComplete) {
     return <CartSkeleton />;
@@ -121,7 +125,7 @@ const Cart = () => {
                 <CartSummary
                   cartItems={cart}
                   amount={cartTotal}
-                  onCheckout={checkoutHandler}
+                  onCheckout={handleCheckout}
                 />
               )}
             </div>

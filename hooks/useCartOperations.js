@@ -7,8 +7,7 @@ import { throttle } from '@/utils/performance';
 import OrderContext from '@/context/OrderContext';
 
 const useCartOperations = () => {
-  const { cart, updateCart, deleteItemFromCart, cartTotal } =
-    useContext(CartContext);
+  const { updateCart, deleteItemFromCart } = useContext(CartContext);
   const { saveOnCheckout } = useContext(OrderContext);
 
   const [deleteInProgress, setDeleteInProgress] = useState(false);
@@ -193,41 +192,48 @@ const useCartOperations = () => {
   );
 
   // Préparation au paiement - pas besoin de throttle ici
-  const checkoutHandler = useCallback(() => {
-    try {
-      // Validation du panier avant checkout
-      if (!cartTotal || cartTotal <= 0) {
-        console.log('Panier vide ou montant invalide pour checkout');
+  const checkoutHandler = useCallback(
+    (cart, cartTotal) => {
+      try {
+        // Validation du panier avant checkout
+        if (!cartTotal || cartTotal <= 0) {
+          console.log('Panier vide ou montant invalide pour checkout');
+          return false;
+        }
+
+        const checkoutData = {
+          amount: cartTotal.toFixed(2),
+          tax: 0,
+          totalAmount: cartTotal.toFixed(2),
+        };
+
+        saveOnCheckout(
+          cart,
+          checkoutData.amount,
+          checkoutData.tax,
+          checkoutData.totalAmount,
+        );
+
+        return true;
+      } catch (error) {
+        console.error('Erreur lors du checkout:', error);
+
+        // Monitoring critique pour échec checkout
+        captureClientError(
+          error,
+          'useCartOperations',
+          'checkoutHandler',
+          true,
+          {
+            cartTotal,
+          },
+        );
+
         return false;
       }
-
-      const checkoutData = {
-        amount: cartTotal.toFixed(2),
-        tax: 0,
-        totalAmount: cartTotal.toFixed(2),
-      };
-
-      console.log('Cart at checkoutHandler:', cart);
-
-      saveOnCheckout(
-        cart,
-        checkoutData.amount,
-        checkoutData.tax,
-        checkoutData.totalAmount,
-      );
-
-      return true;
-    } catch (error) {
-      console.error('Erreur lors du checkout:', error);
-
-      // Monitoring critique pour échec checkout
-      captureClientError(error, 'useCartOperations', 'checkoutHandler', true, {
-        cartTotal,
-      });
-
-      return false;
-    }
-  }, [cartTotal, saveOnCheckout]);
+    },
+    [saveOnCheckout],
+  );
 
   return {
     deleteInProgress,
