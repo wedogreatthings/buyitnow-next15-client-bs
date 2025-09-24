@@ -107,6 +107,8 @@ const getAllAddresses = async (page = 'shipping') => {
     // 7. Parser la réponse JSON
     const responseBody = await res.json();
 
+    console.log('Shipping choice API response:', responseBody); // Log pour debug
+
     // 8. Vérifier la structure de la réponse
     if (!responseBody.success || !responseBody.data) {
       console.error('Invalid API response structure:', responseBody);
@@ -122,6 +124,11 @@ const getAllAddresses = async (page = 'shipping') => {
 
     // 9. Formater les données selon le contexte
     let responseData = { ...responseBody.data };
+
+    console.log(
+      'Formatted response data in Shipping Choice Server component:',
+      responseData,
+    ); // Log pour debug
 
     // Si on est sur la page profil, on n'a pas besoin des données de paiement
     if (page === 'profile') {
@@ -219,6 +226,8 @@ const ShippingChoicePage = async () => {
         deliveryPrice: [{ deliveryPrice: 0 }],
       };
     });
+
+    console.log('Data fetched for ShippingChoicePage:', data); // Log pour debug
 
     // Vérification des données reçues avec valeurs par défaut sécurisées
     const addresses = Array.isArray(data?.data?.addresses)

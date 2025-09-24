@@ -245,13 +245,7 @@ export const OrderProvider = ({ children }) => {
     try {
       const validPrice = parseFloat(price) || 0;
       if (validPrice < 0) {
-        const validationError = new Error('Prix de livraison négatif');
-        captureClientError(
-          validationError,
-          'OrderContext',
-          'setDeliveryPrice',
-          false,
-        );
+        console.log('Prix de livraison négatif détecté');
         setDeliveryPrice(0);
         return;
       }
