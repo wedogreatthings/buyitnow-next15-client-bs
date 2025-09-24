@@ -132,10 +132,8 @@ const ListOrders = ({ orders }) => {
       return orders.orders.reduce(
         (stats, order) => {
           stats.total++;
-          if (order.paymentStatus === 'paid') {
-            stats.paid++;
-            stats.totalAmount += order.totalAmount || 0;
-          }
+          stats.totalAmount += order.totalAmount || 0;
+          if (order.paymentStatus === 'paid') stats.paid++;
           if (order.paymentStatus === 'unpaid') stats.unpaid++;
           if (order.orderStatus === 'Delivered') stats.delivered++;
           return stats;
