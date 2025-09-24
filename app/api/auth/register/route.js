@@ -11,7 +11,22 @@ import { withAuthRateLimit } from '@/utils/rateLimit';
  * POST /api/auth/register
  * Inscription d'un nouvel utilisateur avec vérification email et sécurité renforcée
  * Rate limit: 5 inscriptions par heure par IP (protection anti-spam)
- * Rate limit global: 10 tentatives par 15 minutes par IP
+ *
+ * Headers de sécurité gérés par next.config.mjs pour /api/auth/* :
+ * - Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
+ * - Pragma: no-cache
+ * - Expires: 0
+ * - Surrogate-Control: no-store
+ * - X-Content-Type-Options: nosniff
+ * - X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+ * - X-Download-Options: noopen
+ *
+ * Headers globaux de sécurité (appliqués à toutes les routes) :
+ * - Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+ * - X-Frame-Options: SAMEORIGIN
+ * - Referrer-Policy: strict-origin-when-cross-origin
+ * - Permissions-Policy: [configuration restrictive]
+ * - Content-Security-Policy: [configuration complète avec unsafe-inline pour auth]
  */
 export const POST = withAuthRateLimit(
   async function (req) {
@@ -30,11 +45,14 @@ export const POST = withAuthRateLimit(
             message: 'Corps de requête invalide',
             code: 'INVALID_REQUEST_BODY',
           },
-          { status: 400 },
+          {
+            status: 400,
+            // Headers appliqués automatiquement par next.config.mjs
+          },
         );
       }
 
-      // ✅ AMÉLIORATION: Validation des données avec Yup
+      // Validation des données avec Yup
       const validation = await validateRegister({
         name: userData.name?.trim(),
         email: userData.email?.toLowerCase()?.trim(),
@@ -50,11 +68,14 @@ export const POST = withAuthRateLimit(
             errors: validation.errors,
             code: 'VALIDATION_FAILED',
           },
-          { status: 400 },
+          {
+            status: 400,
+            // Pas de headers manuels - gérés par next.config.mjs
+          },
         );
       }
 
-      // ✅ AMÉLIORATION: Vérification d'unicité email ET téléphone
+      // Vérification d'unicité email
       const existingUser = await User.findOne({
         $or: [{ email: validation.data.email }],
       });
@@ -71,14 +92,17 @@ export const POST = withAuthRateLimit(
             message: `Ce email est déjà utilisé`,
             code: 'DUPLICATE_EMAIL',
           },
-          { status: 400 },
+          {
+            status: 400,
+            // Headers de sécurité appliqués automatiquement
+          },
         );
       }
 
-      // ✅ AMÉLIORATION: Génération token de vérification sécurisé
+      // Génération token de vérification sécurisé
       const verificationToken = crypto.randomBytes(32).toString('hex');
 
-      // ✅ AMÉLIORATION: Créer l'utilisateur avec tous les champs appropriés
+      // Créer l'utilisateur avec tous les champs appropriés
       const user = await User.create({
         name: validation.data.name,
         email: validation.data.email,
@@ -92,15 +116,6 @@ export const POST = withAuthRateLimit(
           public_id: null,
           url: null,
         },
-        // Les autres champs sont auto-initialisés par le modèle :
-        // loginAttempts: 0 (défaut)
-        // lockUntil: null (défaut)
-        // lastLogin: null (défaut)
-        // passwordChangedAt: null (défaut)
-        // resetPasswordToken: undefined (défaut)
-        // resetPasswordExpire: undefined (défaut)
-        // createdAt: Date.now() (défaut)
-        // updatedAt: Date.now() (défaut)
       });
 
       console.log('✅ User registered successfully:', {
@@ -110,7 +125,7 @@ export const POST = withAuthRateLimit(
         verified: user.verified,
       });
 
-      // ✅ AMÉLIORATION: Envoyer email de vérification avec le vrai service
+      // Envoyer email de vérification avec le vrai service
       let emailSent = false;
       let emailError = null;
 
@@ -148,7 +163,7 @@ export const POST = withAuthRateLimit(
         });
       }
 
-      // ✅ Log de sécurité pour audit
+      // Log de sécurité pour audit
       console.log('🔒 Security event - User registered:', {
         userId: user._id,
         email: user.email?.substring(0, 3) + '***',
@@ -162,7 +177,7 @@ export const POST = withAuthRateLimit(
           'unknown',
       });
 
-      // ✅ AMÉLIORATION: Réponse enrichie avec informations complètes
+      // Réponse enrichie avec informations complètes
       const response = {
         success: true,
         message: emailSent
@@ -181,7 +196,7 @@ export const POST = withAuthRateLimit(
             avatar: user.avatar,
           },
           emailSent,
-          // ✅ AMÉLIORATION: Instructions pour l'utilisateur
+          // Instructions pour l'utilisateur
           nextSteps: emailSent
             ? [
                 'Consultez votre boîte email',
@@ -200,11 +215,33 @@ export const POST = withAuthRateLimit(
         },
       };
 
-      return NextResponse.json(response, { status: 201 });
+      // ============================================
+      // NOUVELLE IMPLÉMENTATION : Headers de sécurité
+      //
+      // Tous les headers de sécurité sont maintenant gérés
+      // de manière centralisée par next.config.mjs
+      //
+      // Pour /api/auth/* sont appliqués automatiquement :
+      // - Pas de cache (no-store, no-cache, must-revalidate)
+      // - Protection maximale (X-Robots-Tag: noindex, nofollow)
+      // - Sécurité downloads (X-Download-Options: noopen)
+      // - Protection MIME (X-Content-Type-Options: nosniff)
+      //
+      // Plus les headers globaux de sécurité :
+      // - HSTS complet avec preload
+      // - CSP avec configuration sécurisée
+      // - Permissions-Policy restrictive
+      // - Protection clickjacking
+      // ============================================
+
+      return NextResponse.json(response, {
+        status: 201,
+        // Pas de headers manuels - tout est géré par next.config.mjs
+      });
     } catch (error) {
       console.error('❌ Registration error:', error.message);
 
-      // ✅ AMÉLIORATION: Gestion spécifique des erreurs MongoDB
+      // Gestion spécifique des erreurs MongoDB
       if (error.code === 11000) {
         // Erreur d'index unique
         const duplicateField = Object.keys(error.keyPattern)[0];
@@ -218,7 +255,7 @@ export const POST = withAuthRateLimit(
         );
       }
 
-      // ✅ AMÉLIORATION: Gestion des erreurs de validation Mongoose
+      // Gestion des erreurs de validation Mongoose
       if (error.name === 'ValidationError') {
         const validationErrors = {};
         Object.keys(error.errors).forEach((key) => {
@@ -236,7 +273,7 @@ export const POST = withAuthRateLimit(
         );
       }
 
-      // ✅ AMÉLIORATION: Gestion des erreurs de connexion DB
+      // Gestion des erreurs de connexion DB
       if (error.message.includes('connection')) {
         captureException(error, {
           tags: { component: 'database', route: 'auth/register' },

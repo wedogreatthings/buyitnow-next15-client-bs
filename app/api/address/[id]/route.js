@@ -12,6 +12,16 @@ import { withApiRateLimit } from '@/utils/rateLimit';
  * GET /api/address/[id]
  * Récupère une adresse spécifique
  * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
+ *
+ * Headers de sécurité gérés par next.config.mjs pour /api/address/* :
+ * - Cache-Control: private, no-cache, no-store, must-revalidate
+ * - Pragma: no-cache
+ * - X-Content-Type-Options: nosniff
+ * - X-Robots-Tag: noindex, nofollow
+ * - X-Download-Options: noopen
+ *
+ * Headers globaux appliqués automatiquement :
+ * - HSTS, CSP, Permissions-Policy, X-Frame-Options, Referrer-Policy
  */
 export const GET = withApiRateLimit(async function (req, { params }) {
   try {
@@ -25,7 +35,11 @@ export const GET = withApiRateLimit(async function (req, { params }) {
     const { id } = params;
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
-        { success: false, message: 'Invalid address ID' },
+        {
+          success: false,
+          message: 'Invalid address ID',
+          code: 'INVALID_ID',
+        },
         { status: 400 },
       );
     }
@@ -34,32 +48,84 @@ export const GET = withApiRateLimit(async function (req, { params }) {
     const user = await User.findOne({ email: req.user.email }).select('_id');
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
+        {
+          success: false,
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+        },
         { status: 404 },
       );
     }
 
     // Récupérer l'adresse
-    const address = await Address.findById(id);
+    const address = await Address.findById(id)
+      .select(
+        'street city state zipCode country isDefault additionalInfo user createdAt updatedAt',
+      )
+      .lean();
 
     if (!address) {
       return NextResponse.json(
-        { success: false, message: 'Address not found' },
+        {
+          success: false,
+          message: 'Address not found',
+          code: 'ADDRESS_NOT_FOUND',
+        },
         { status: 404 },
       );
     }
 
     // Vérifier la propriété
     if (address.user?.toString() !== user._id.toString()) {
+      // Log de sécurité pour tentative d'accès non autorisé
+      console.warn('🚨 Unauthorized address access attempt:', {
+        userId: user._id,
+        addressId: id,
+        addressOwnerId: address.user,
+        timestamp: new Date().toISOString(),
+        ip:
+          req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          'unknown',
+      });
+
       return NextResponse.json(
-        { success: false, message: 'Unauthorized' },
+        {
+          success: false,
+          message: 'Unauthorized',
+          code: 'UNAUTHORIZED_ACCESS',
+        },
         { status: 403 },
       );
     }
 
+    // ============================================
+    // Headers de sécurité appliqués automatiquement
+    // Pas de cache pour les données personnelles
+    // Protection maximale via next.config.mjs
+    // ============================================
+
     return NextResponse.json(
-      { success: true, data: { address } },
-      { status: 200 },
+      {
+        success: true,
+        data: {
+          address: {
+            _id: address._id,
+            street: address.street,
+            city: address.city,
+            state: address.state,
+            zipCode: address.zipCode,
+            country: address.country,
+            isDefault: address.isDefault,
+            additionalInfo: address.additionalInfo,
+            createdAt: address.createdAt,
+            updatedAt: address.updatedAt,
+          },
+        },
+      },
+      {
+        status: 200,
+        // Pas de headers manuels
+      },
     );
   } catch (error) {
     console.error('GET address error:', error.message);
@@ -78,6 +144,8 @@ export const GET = withApiRateLimit(async function (req, { params }) {
           error.name === 'CastError'
             ? 'Invalid address ID format'
             : 'Something went wrong',
+        code:
+          error.name === 'CastError' ? 'INVALID_ID_FORMAT' : 'INTERNAL_ERROR',
       },
       { status: error.name === 'CastError' ? 400 : 500 },
     );
@@ -88,6 +156,8 @@ export const GET = withApiRateLimit(async function (req, { params }) {
  * PUT /api/address/[id]
  * Met à jour une adresse
  * Rate limit: 20 modifications par 5 minutes (protection contre les modifications abusives)
+ *
+ * Headers de sécurité appliqués automatiquement via next.config.mjs
  */
 export const PUT = withApiRateLimit(
   async function (req, { params }) {
@@ -102,7 +172,11 @@ export const PUT = withApiRateLimit(
       const { id } = params;
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         return NextResponse.json(
-          { success: false, message: 'Invalid address ID' },
+          {
+            success: false,
+            message: 'Invalid address ID',
+            code: 'INVALID_ID',
+          },
           { status: 400 },
         );
       }
@@ -111,7 +185,11 @@ export const PUT = withApiRateLimit(
       const user = await User.findOne({ email: req.user.email }).select('_id');
       if (!user) {
         return NextResponse.json(
-          { success: false, message: 'User not found' },
+          {
+            success: false,
+            message: 'User not found',
+            code: 'USER_NOT_FOUND',
+          },
           { status: 404 },
         );
       }
@@ -123,7 +201,11 @@ export const PUT = withApiRateLimit(
         addressData = sanitizeAddress(rawData);
       } catch (error) {
         return NextResponse.json(
-          { success: false, message: 'Invalid request body' },
+          {
+            success: false,
+            message: 'Invalid request body',
+            code: 'INVALID_BODY',
+          },
           { status: 400 },
         );
       }
@@ -135,6 +217,7 @@ export const PUT = withApiRateLimit(
           {
             success: false,
             message: 'Validation failed',
+            code: 'VALIDATION_FAILED',
             errors: validation.errors,
           },
           { status: 400 },
@@ -145,20 +228,39 @@ export const PUT = withApiRateLimit(
       const existingAddress = await Address.findById(id);
       if (!existingAddress) {
         return NextResponse.json(
-          { success: false, message: 'Address not found' },
+          {
+            success: false,
+            message: 'Address not found',
+            code: 'ADDRESS_NOT_FOUND',
+          },
           { status: 404 },
         );
       }
 
       if (existingAddress.user.toString() !== user._id.toString()) {
+        // Log de sécurité pour tentative de modification non autorisée
+        console.warn('🚨 Unauthorized address update attempt:', {
+          userId: user._id,
+          addressId: id,
+          addressOwnerId: existingAddress.user,
+          timestamp: new Date().toISOString(),
+          ip:
+            req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            'unknown',
+        });
+
         return NextResponse.json(
-          { success: false, message: 'Unauthorized' },
+          {
+            success: false,
+            message: 'Unauthorized',
+            code: 'UNAUTHORIZED_UPDATE',
+          },
           { status: 403 },
         );
       }
 
       // Si c'est la nouvelle adresse par défaut, désactiver les autres
-      if (validation.data.isDefault === true) {
+      if (validation.data.isDefault === true && !existingAddress.isDefault) {
         await Address.updateMany(
           { user: user._id, isDefault: true, _id: { $ne: id } },
           { isDefault: false },
@@ -168,17 +270,47 @@ export const PUT = withApiRateLimit(
       // Mettre à jour l'adresse
       const updatedAddress = await Address.findByIdAndUpdate(
         id,
-        { ...validation.data, user: user._id },
-        { new: true, runValidators: true },
-      );
+        {
+          ...validation.data,
+          user: user._id,
+          updatedAt: new Date(),
+        },
+        {
+          new: true,
+          runValidators: true,
+          select:
+            'street city state zipCode country isDefault additionalInfo updatedAt',
+        },
+      ).lean();
+
+      // Log de sécurité pour audit
+      console.log('🔒 Security event - Address updated:', {
+        userId: user._id,
+        addressId: id,
+        changedToDefault:
+          validation.data.isDefault && !existingAddress.isDefault,
+        timestamp: new Date().toISOString(),
+        ip:
+          req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          'unknown',
+      });
 
       return NextResponse.json(
         {
           success: true,
-          data: { address: updatedAddress },
           message: 'Address updated successfully',
+          data: {
+            address: updatedAddress,
+            meta: {
+              wasDefault: existingAddress.isDefault,
+              isNowDefault: updatedAddress.isDefault,
+            },
+          },
         },
-        { status: 200 },
+        {
+          status: 200,
+          // Headers appliqués automatiquement
+        },
       );
     } catch (error) {
       console.error('PUT address error:', error.message);
@@ -193,19 +325,23 @@ export const PUT = withApiRateLimit(
       // Gestion simple des erreurs
       let status = 500;
       let message = 'Something went wrong';
+      let code = 'INTERNAL_ERROR';
 
       if (error.name === 'ValidationError') {
         status = 400;
         message = 'Invalid address data';
+        code = 'VALIDATION_ERROR';
       } else if (error.name === 'CastError') {
         status = 400;
         message = 'Invalid address ID format';
+        code = 'INVALID_ID_FORMAT';
       } else if (error.code === 11000) {
         status = 409;
         message = 'This address already exists';
+        code = 'DUPLICATE_ADDRESS';
       }
 
-      return NextResponse.json({ success: false, message }, { status });
+      return NextResponse.json({ success: false, message, code }, { status });
     }
   },
   {
@@ -221,6 +357,8 @@ export const PUT = withApiRateLimit(
  * DELETE /api/address/[id]
  * Supprime une adresse
  * Rate limit: 5 suppressions par 5 minutes (protection contre les suppressions abusives)
+ *
+ * Headers de sécurité appliqués automatiquement via next.config.mjs
  */
 export const DELETE = withApiRateLimit(
   async function (req, { params }) {
@@ -235,7 +373,11 @@ export const DELETE = withApiRateLimit(
       const { id } = params;
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         return NextResponse.json(
-          { success: false, message: 'Invalid address ID' },
+          {
+            success: false,
+            message: 'Invalid address ID',
+            code: 'INVALID_ID',
+          },
           { status: 400 },
         );
       }
@@ -244,7 +386,11 @@ export const DELETE = withApiRateLimit(
       const user = await User.findOne({ email: req.user.email }).select('_id');
       if (!user) {
         return NextResponse.json(
-          { success: false, message: 'User not found' },
+          {
+            success: false,
+            message: 'User not found',
+            code: 'USER_NOT_FOUND',
+          },
           { status: 404 },
         );
       }
@@ -253,27 +399,90 @@ export const DELETE = withApiRateLimit(
       const address = await Address.findById(id);
       if (!address) {
         return NextResponse.json(
-          { success: false, message: 'Address not found' },
+          {
+            success: false,
+            message: 'Address not found',
+            code: 'ADDRESS_NOT_FOUND',
+          },
           { status: 404 },
         );
       }
 
       if (address.user.toString() !== user._id.toString()) {
+        // Log de sécurité pour tentative de suppression non autorisée
+        console.warn('🚨 Unauthorized address deletion attempt:', {
+          userId: user._id,
+          addressId: id,
+          addressOwnerId: address.user,
+          timestamp: new Date().toISOString(),
+          ip:
+            req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+            'unknown',
+        });
+
         return NextResponse.json(
-          { success: false, message: 'Unauthorized' },
+          {
+            success: false,
+            message: 'Unauthorized',
+            code: 'UNAUTHORIZED_DELETE',
+          },
           { status: 403 },
         );
       }
 
+      // Vérifier si c'est la dernière adresse par défaut
+      const wasDefault = address.isDefault;
+      const remainingAddresses = await Address.countDocuments({
+        user: user._id,
+        _id: { $ne: id },
+      });
+
       // Supprimer l'adresse
       await Address.findByIdAndDelete(id);
+
+      // Si c'était l'adresse par défaut et qu'il reste d'autres adresses
+      let newDefaultSet = false;
+      if (wasDefault && remainingAddresses > 0) {
+        // Définir la plus récente comme nouvelle adresse par défaut
+        const latestAddress = await Address.findOne({ user: user._id }).sort({
+          createdAt: -1,
+        });
+
+        if (latestAddress) {
+          latestAddress.isDefault = true;
+          await latestAddress.save();
+          newDefaultSet = true;
+        }
+      }
+
+      // Log de sécurité pour audit
+      console.log('🔒 Security event - Address deleted:', {
+        userId: user._id,
+        addressId: id,
+        wasDefault,
+        newDefaultSet,
+        remainingCount: remainingAddresses,
+        timestamp: new Date().toISOString(),
+        ip:
+          req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          'unknown',
+      });
 
       return NextResponse.json(
         {
           success: true,
           message: 'Address deleted successfully',
+          data: {
+            deletedId: id,
+            wasDefault,
+            newDefaultSet,
+            remainingAddresses,
+          },
         },
-        { status: 200 },
+        {
+          status: 200,
+          // Headers de sécurité appliqués automatiquement
+        },
       );
     } catch (error) {
       console.error('DELETE address error:', error.message);
@@ -292,6 +501,8 @@ export const DELETE = withApiRateLimit(
             error.name === 'CastError'
               ? 'Invalid address ID format'
               : 'Something went wrong',
+          code:
+            error.name === 'CastError' ? 'INVALID_ID_FORMAT' : 'INTERNAL_ERROR',
         },
         { status: error.name === 'CastError' ? 400 : 500 },
       );
@@ -301,7 +512,7 @@ export const DELETE = withApiRateLimit(
     customLimit: {
       points: 5, // 5 suppressions maximum
       duration: 300000, // par période de 5 minutes
-      blockDuration: 1800000, // blocage de 30 minutes en cas de dépassement (plus strict pour les suppressions)
+      blockDuration: 1800000, // blocage de 30 minutes (plus strict pour les suppressions)
     },
   },
 );

@@ -104,29 +104,6 @@ const bundleAnalyzer = withBundleAnalyzer({
   openAnalyzer: false,
 });
 
-const securityHeaders = [
-  {
-    key: 'Strict-Transport-Security',
-    value: 'max-age=63072000; includeSubDomains; preload',
-  },
-  {
-    key: 'X-Frame-Options',
-    value: 'SAMEORIGIN',
-  },
-  {
-    key: 'X-Content-Type-Options',
-    value: 'nosniff',
-  },
-  {
-    key: 'Referrer-Policy',
-    value: 'no-referrer, strict-origin-when-cross-origin',
-  },
-  {
-    key: 'Content-Security-Policy',
-    value: `default-src 'self'; manifest-src 'self'; worker-src ${process.env.NEXT_PUBLIC_SITE_URL}; frame-src 'self' https://upload-widget.cloudinary.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; media-src 'self' https://res.cloudinary.com ; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' https://cdnjs.cloudflare.com; connect-src 'self' https://res.cloudinary.com https://sentry.io https://*.ingest.sentry.io https://*.sentry.io;`,
-  },
-];
-
 const nextConfig = {
   // Configuration de base
   output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
@@ -165,55 +142,175 @@ const nextConfig = {
 
   // Timeout pour la génération de pages statiques (réduit de 180 à 60)
   staticPageGenerationTimeout: 180,
-  // Configuration des headers de sécurité
+  // Configuration des headers de sécurité// next.config.js - Section headers optimisée
   async headers() {
     return [
+      // ============================================
+      // 1. HEADERS DE SÉCURITÉ GLOBAUX (toutes les pages HTML)
+      // ============================================
       {
-        source: '/:path*',
-        headers: securityHeaders,
-      },
-      // Dans la section headers, pour les API non-critiques:
-      {
-        source: '/api/products',
+        source: '/(.*)',
         headers: [
+          // HSTS - Force HTTPS (2 ans recommandé pour production)
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=60, stale-while-revalidate=120', // Pour les requêtes GET publiques
+            key: 'Strict-Transport-Security',
+            value: 'max-age=63072000; includeSubDomains; preload',
           },
-          // Autres en-têtes...
+          // Protection Clickjacking (remplacé par CSP frame-ancestors mais gardé pour compatibilité)
           {
-            key: 'Access-Control-Allow-Origin',
-            value: 'www.google.fr', // Set your origin
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN', // Changé de DENY pour permettre vos propres iframes si besoin
+          },
+          // Protection contre le MIME sniffing
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          // Politique de referrer équilibrée (sécurité + analytics)
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          // Permissions Policy - Désactive les APIs non nécessaires pour un e-commerce
+          {
+            key: 'Permissions-Policy',
+            value:
+              'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+          },
+          // CSP optimisé pour votre stack
+          {
+            key: 'Content-Security-Policy',
+            value: `
+            default-src 'self';
+            script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdnjs.cloudflare.com https://upload-widget.cloudinary.com;
+            style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+            img-src 'self' blob: data: https://res.cloudinary.com https://buyitnow-next15-client-bs.vercel.app;
+            font-src 'self' data: https://cdnjs.cloudflare.com;
+            connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com https://upload-widget.cloudinary.com ${process.env.NODE_ENV === 'production' ? 'https://*.sentry.io https://sentry.io' : ''};
+            media-src 'self' https://res.cloudinary.com;
+            object-src 'none';
+            frame-src 'self' https://upload-widget.cloudinary.com;
+            frame-ancestors 'self';
+            base-uri 'self';
+            form-action 'self';
+            manifest-src 'self';
+            worker-src 'self';
+            upgrade-insecure-requests;
+          `
+              .replace(/\s{2,}/g, ' ')
+              .trim(),
+          },
+          // Headers additionnels pour la sécurité
+          {
+            key: 'X-DNS-Prefetch-Control',
+            value: 'on',
           },
           {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET',
+            key: 'X-XSS-Protection',
+            value: '0', // Désactivé car déprécié et peut causer des vulnérabilités
           },
         ],
       },
+
+      // ============================================
+      // 2. APIs PUBLIQUES (products, category)
+      // Appelées par Server Components (S2S)
+      // ============================================
       {
-        source: '/api/:path*',
+        source: '/api/(products|category)/:path*',
         headers: [
           {
-            key: 'Access-Control-Allow-Origin',
-            value: `${process.env.NEXT_PUBLIC_API_URL}`, // Set your origin
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization',
-          },
-          {
             key: 'Cache-Control',
-            value: 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            value: 'public, max-age=300, stale-while-revalidate=600',
           },
-          { key: 'Pragma', value: 'no-cache' },
-          { key: 'Expires', value: '0' },
+          {
+            key: 'CDN-Cache-Control',
+            value: 'max-age=600',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Vary',
+            value: 'Accept-Encoding',
+          },
         ],
       },
+
+      // ============================================
+      // 3. APIs D'AUTHENTIFICATION
+      // Sécurité maximale, jamais de cache
+      // ============================================
+      {
+        source: '/api/auth/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value:
+              'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'Expires',
+            value: '0',
+          },
+          {
+            key: 'Surrogate-Control',
+            value: 'no-store',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow, noarchive, nosnippet',
+          },
+          {
+            key: 'X-Download-Options',
+            value: 'noopen',
+          },
+        ],
+      },
+
+      // ============================================
+      // 4. APIs PRIVÉES (cart, orders, address, emails)
+      // Données sensibles utilisateur
+      // ============================================
+      {
+        source: '/api/(address|cart|orders|emails)/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'Pragma',
+            value: 'no-cache',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
+          },
+          {
+            key: 'X-Download-Options',
+            value: 'noopen',
+          },
+        ],
+      },
+
+      // ============================================
+      // 5. ASSETS STATIQUES NEXT.JS
+      // Cache immutable pour les builds
+      // ============================================
       {
         source: '/_next/static/:path*',
         headers: [
@@ -221,19 +318,120 @@ const nextConfig = {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
           },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
         ],
       },
+
+      // ============================================
+      // 6. IMAGES STATIQUES LOCALES
+      // Dans votre dossier public/images
+      // ============================================
       {
         source: '/images/:path*',
         headers: [
           {
             key: 'Cache-Control',
-            value: 'public, max-age=86400, stale-while-revalidate=3600',
+            value: 'public, max-age=86400, stale-while-revalidate=7200',
+          },
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Accept-Ranges',
+            value: 'bytes',
+          },
+        ],
+      },
+
+      // ============================================
+      // 7. FAVICONS ET ASSETS ROOT
+      // ============================================
+      {
+        source:
+          '/(favicon.ico|icon-*.png|apple-touch-icon.png|robots.txt|sitemap.xml)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=43200',
+          },
+        ],
+      },
+
+      // ============================================
+      // 8. SERVICE WORKER
+      // ============================================
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=0, must-revalidate',
+          },
+          {
+            key: 'Service-Worker-Allowed',
+            value: '/',
+          },
+        ],
+      },
+
+      // ============================================
+      // 9. MANIFEST PWA
+      // ============================================
+      {
+        source: '/manifest.json',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400',
+          },
+          {
+            key: 'Content-Type',
+            value: 'application/manifest+json',
+          },
+        ],
+      },
+
+      // ============================================
+      // 10. PAGES D'ERREUR
+      // ============================================
+      {
+        source: '/(404|500|error)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
+          },
+        ],
+      },
+
+      // ============================================
+      // 11. PAGES SENSIBLES (auth, payment, checkout)
+      // ============================================
+      {
+        source:
+          '/(login|register|forgot-password|reset-password|cart|shipping|payment|confirmation)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'private, no-cache, no-store, must-revalidate',
+          },
+          {
+            key: 'X-Robots-Tag',
+            value: 'noindex, nofollow',
           },
         ],
       },
     ];
   },
+
   // Configuration des redirections
   async redirects() {
     return [

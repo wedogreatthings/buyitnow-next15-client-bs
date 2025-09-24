@@ -16,6 +16,12 @@ const MAX_PER_PAGE = 50;
  * GET /api/products
  * Récupère la liste des produits avec filtres et pagination
  * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
+ *
+ * Headers de sécurité gérés par next.config.mjs :
+ * - Cache-Control: public, max-age=300, stale-while-revalidate=600
+ * - CDN-Cache-Control: max-age=600
+ * - X-Content-Type-Options: nosniff
+ * - Vary: Accept-Encoding
  */
 export const GET = withApiRateLimit(async function (req) {
   try {
@@ -89,15 +95,31 @@ export const GET = withApiRateLimit(async function (req) {
       },
     };
 
-    // Headers de cache pour les produits (changent plus souvent que les catégories)
-    const cacheHeaders = {
-      'Cache-Control': 'public, max-age=300, stale-while-revalidate=600', // 5min cache, 10min stale
-      'CDN-Cache-Control': 'max-age=600', // 10min pour CDN si utilisé
-    };
+    // ============================================
+    // NOUVELLE IMPLÉMENTATION : Headers de sécurité
+    // Les headers principaux sont maintenant gérés par next.config.mjs
+    // Nous retournons simplement la réponse sans headers supplémentaires
+    // car la configuration centralisée dans next.config.mjs applique :
+    //
+    // Pour /api/products/* :
+    // - Cache-Control: public, max-age=300, stale-while-revalidate=600
+    // - CDN-Cache-Control: max-age=600
+    // - X-Content-Type-Options: nosniff
+    // - Vary: Accept-Encoding
+    //
+    // Headers globaux de sécurité (toutes routes) :
+    // - Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+    // - X-Frame-Options: SAMEORIGIN
+    // - X-Content-Type-Options: nosniff
+    // - Referrer-Policy: strict-origin-when-cross-origin
+    // - Permissions-Policy: camera=(), microphone=(), geolocation=(), ...
+    // - Content-Security-Policy: [configuration complète]
+    // ============================================
 
     return NextResponse.json(responseData, {
       status: 200,
-      headers: cacheHeaders,
+      // Plus besoin d'ajouter les headers ici car ils sont gérés globalement
+      // Les headers de cache sont appliqués automatiquement via next.config.mjs
     });
   } catch (error) {
     console.error('Products fetch error:', error.message);

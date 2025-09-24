@@ -10,6 +10,22 @@ import { withAuthRateLimit } from '@/utils/rateLimit';
 /**
  * Configuration NextAuth améliorée avec sécurité enterprise
  * Authentification par email/mot de passe avec anti-bruteforce
+ *
+ * Headers de sécurité gérés par next.config.mjs pour /api/auth/* :
+ * - Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0
+ * - Pragma: no-cache
+ * - Expires: 0
+ * - Surrogate-Control: no-store
+ * - X-Content-Type-Options: nosniff
+ * - X-Robots-Tag: noindex, nofollow, noarchive, nosnippet
+ * - X-Download-Options: noopen
+ *
+ * Headers globaux de sécurité appliqués :
+ * - Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+ * - X-Frame-Options: SAMEORIGIN
+ * - Referrer-Policy: strict-origin-when-cross-origin
+ * - Permissions-Policy: [configuration restrictive]
+ * - Content-Security-Policy: [configuration complète]
  */
 const authOptions = {
   providers: [
@@ -49,7 +65,7 @@ const authOptions = {
             throw new Error('Invalid email or password');
           }
 
-          // ✅ AMÉLIORATION: Vérifier si le compte est verrouillé
+          // Vérifier si le compte est verrouillé
           if (user.isLocked()) {
             const lockUntilFormatted = new Date(user.lockUntil).toLocaleString(
               'fr-FR',
@@ -60,7 +76,7 @@ const authOptions = {
             );
           }
 
-          // ✅ AMÉLIORATION: Vérifier si le compte est actif
+          // Vérifier si le compte est actif
           if (!user.isActive) {
             console.log('Login failed: Account suspended for user:', email);
             throw new Error("Compte suspendu. Contactez l'administrateur.");
@@ -75,7 +91,7 @@ const authOptions = {
           if (!isPasswordValid) {
             console.log('Login failed: Invalid password for user:', email);
 
-            // ✅ AMÉLIORATION: Incrémenter tentatives échouées
+            // Incrémenter tentatives échouées
             await user.incrementLoginAttempts();
 
             const attemptsLeft = Math.max(0, 5 - user.loginAttempts - 1);
@@ -90,7 +106,7 @@ const authOptions = {
             }
           }
 
-          // ✅ AMÉLIORATION: Connexion réussie - Reset tentatives + update lastLogin
+          // Connexion réussie - Reset tentatives + update lastLogin
           await user.resetLoginAttempts();
 
           // 5. Retourner l'utilisateur avec tous les champs utiles
@@ -135,7 +151,7 @@ const authOptions = {
   ],
 
   callbacks: {
-    // ✅ AMÉLIORATION: Callback JWT enrichi
+    // Callback JWT enrichi
     jwt: async ({ token, user }) => {
       if (user) {
         token.user = {
@@ -155,7 +171,7 @@ const authOptions = {
         token.isNewLogin = true;
         token.loginTime = Date.now();
 
-        // ✅ AMÉLIORATION: Mettre à jour lastLogin en base de données
+        // Mettre à jour lastLogin en base de données
         try {
           await dbConnect();
           await User.findByIdAndUpdate(user._id, {
@@ -180,12 +196,12 @@ const authOptions = {
       return token;
     },
 
-    // ✅ AMÉLIORATION: Session enrichie avec plus de données
+    // Session enrichie avec plus de données
     session: async ({ session, token }) => {
       if (token?.user) {
         session.user = {
           ...token.user,
-          // ✅ AJOUT: Informations supplémentaires pour l'interface
+          // Informations supplémentaires pour l'interface
           memberSince: token.user.createdAt,
           isVerified: token.user.verified,
           accountStatus: token.user.isActive ? 'active' : 'suspended',
@@ -203,7 +219,7 @@ const authOptions = {
     },
   },
 
-  // ✅ AMÉLIORATION: Cookies sécurisés avec options étendues
+  // Cookies sécurisés avec options étendues
   cookies: {
     sessionToken: {
       name:
@@ -215,7 +231,6 @@ const authOptions = {
         sameSite: 'lax',
         path: '/',
         secure: process.env.NODE_ENV === 'production',
-        // ✅ AJOUT: Durée de vie du cookie
         maxAge: 24 * 60 * 60, // 24 heures
       },
     },
@@ -241,7 +256,7 @@ const authOptions = {
   debug: process.env.NODE_ENV === 'development',
   useSecureCookies: process.env.NODE_ENV === 'production',
 
-  // ✅ AJOUT: Events pour tracking
+  // Events pour tracking
   events: {
     async signIn({ user, account, profile, isNewUser }) {
       console.log(`User signed in: ${user.email}`);
@@ -257,16 +272,10 @@ const authOptions = {
 const baseHandler = NextAuth(authOptions);
 
 /**
- * ✅ NOUVEAU: Wrapper avec rate limiting pour les endpoints d'authentification
+ * Wrapper avec rate limiting pour les endpoints d'authentification
  *
- * NextAuth génère plusieurs endpoints:
- * - POST /api/auth/signin - pour la connexion (le plus critique)
- * - GET /api/auth/signout - pour la déconnexion
- * - GET /api/auth/session - pour récupérer la session
- * - GET /api/auth/csrf - pour le token CSRF
- * - GET /api/auth/providers - pour lister les providers
- *
- * On applique le rate limiting sur tous, avec des limites adaptées
+ * IMPORTANT: Les headers de sécurité sont appliqués automatiquement
+ * par next.config.mjs, pas besoin de les ajouter ici
  */
 
 // Handler GET avec rate limiting modéré (pour session, csrf, providers)
@@ -316,31 +325,3 @@ export const POST = withAuthRateLimit(
 
 // Export de authOptions pour utilisation dans d'autres fichiers
 export { authOptions as auth };
-
-/**
- * SÉCURITÉ MULTI-COUCHES:
- *
- * 1. Rate Limiting (rateLimit.js):
- *    - IP-based: 5 tentatives / 15 min
- *    - Blocage 30 min après dépassement
- *    - Protection DDoS intégrée
- *
- * 2. Account Locking (User model):
- *    - 5 tentatives par compte
- *    - Verrouillage progressif
- *    - Reset après connexion réussie
- *
- * 3. Validation (Yup):
- *    - Format email valide
- *    - Longueur mot de passe
- *    - Sanitisation des entrées
- *
- * 4. Sécurité NextAuth:
- *    - JWT signé avec secret
- *    - Cookies httpOnly
- *    - CSRF protection
- *    - Session expiration
- *
- * Cette approche en couches garantit une protection maximale
- * contre les attaques par force brute et les tentatives de compromission.
- */

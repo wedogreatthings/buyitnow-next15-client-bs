@@ -14,6 +14,20 @@ import { withApiRateLimit } from '@/utils/rateLimit';
  * GET /api/address
  * Récupère toutes les adresses d'un utilisateur
  * Rate limit: 60 req/min (public) ou 120 req/min (authenticated)
+ *
+ * Headers de sécurité gérés par next.config.mjs pour /api/address/* :
+ * - Cache-Control: private, no-cache, no-store, must-revalidate
+ * - Pragma: no-cache
+ * - X-Content-Type-Options: nosniff
+ * - X-Robots-Tag: noindex, nofollow
+ * - X-Download-Options: noopen
+ *
+ * Headers globaux de sécurité (toutes routes) :
+ * - Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+ * - X-Frame-Options: SAMEORIGIN
+ * - Referrer-Policy: strict-origin-when-cross-origin
+ * - Permissions-Policy: [configuration restrictive]
+ * - Content-Security-Policy: [configuration complète]
  */
 export const GET = withApiRateLimit(async function (req) {
   try {
@@ -31,31 +45,54 @@ export const GET = withApiRateLimit(async function (req) {
     const user = await User.findOne({ email: req.user.email }).select('_id');
     if (!user) {
       return NextResponse.json(
-        { success: false, message: 'User not found' },
+        {
+          success: false,
+          message: 'User not found',
+          code: 'USER_NOT_FOUND',
+        },
         { status: 404 },
       );
     }
 
     // Récupérer les adresses de l'utilisateur
-    const addresses = await Address.find({ user: user._id }).select(
-      'street city state zipCode country isDefault additionalInfo',
-    );
+    const addresses = await Address.find({ user: user._id })
+      .select(
+        'street city state zipCode country isDefault additionalInfo createdAt updatedAt',
+      )
+      .sort({ isDefault: -1, createdAt: -1 }) // Adresse par défaut en premier
+      .lean();
 
     // Données additionnelles pour le contexte shipping
-    let responseData = { addresses };
+    let responseData = {
+      addresses,
+      count: addresses.length,
+      hasDefaultAddress: addresses.some((addr) => addr.isDefault),
+    };
 
     if (context === 'shipping') {
       try {
         // Récupérer les types de paiement et prix de livraison en parallèle
         const [paymentTypes, deliveryPrice] = await Promise.all([
-          PaymentType.find().catch(() => []),
-          DeliveryPrice.find().catch(() => []),
+          PaymentType.find({ isActive: true })
+            .select('name code icon description')
+            .lean()
+            .catch(() => []),
+          DeliveryPrice.find({ isActive: true })
+            .select('zone price estimatedDays')
+            .lean()
+            .catch(() => []),
         ]);
 
         responseData = {
           addresses,
           paymentTypes,
           deliveryPrice,
+          count: addresses.length,
+          hasDefaultAddress: addresses.some((addr) => addr.isDefault),
+          meta: {
+            context,
+            timestamp: new Date().toISOString(),
+          },
         };
       } catch (error) {
         // Si erreur, continuer avec juste les adresses
@@ -63,12 +100,32 @@ export const GET = withApiRateLimit(async function (req) {
       }
     }
 
+    // ============================================
+    // NOUVELLE IMPLÉMENTATION : Headers de sécurité
+    //
+    // Les headers sont maintenant gérés de manière centralisée
+    // par next.config.mjs pour garantir la cohérence et la sécurité
+    //
+    // Pour /api/address/* sont appliqués automatiquement :
+    // - Cache privé uniquement (données sensibles utilisateur)
+    // - Pas de cache navigateur (no-store, no-cache)
+    // - Protection contre l'indexation (X-Robots-Tag)
+    // - Protection téléchargements (X-Download-Options)
+    // - Protection MIME (X-Content-Type-Options)
+    //
+    // Ces headers garantissent que les données d'adresse
+    // ne sont jamais mises en cache publiquement ou indexées
+    // ============================================
+
     return NextResponse.json(
       {
         success: true,
         data: responseData,
       },
-      { status: 200 },
+      {
+        status: 200,
+        // Pas de headers manuels - gérés par next.config.mjs
+      },
     );
   } catch (error) {
     console.error('GET addresses error:', error.message);
@@ -88,7 +145,10 @@ export const GET = withApiRateLimit(async function (req) {
         success: false,
         message: error.message?.includes('authentication')
           ? 'Authentication failed'
-          : 'Something went wrong',
+          : 'Failed to fetch addresses',
+        code: error.message?.includes('authentication')
+          ? 'AUTH_FAILED'
+          : 'FETCH_ERROR',
       },
       { status: error.message?.includes('authentication') ? 401 : 500 },
     );
@@ -99,6 +159,8 @@ export const GET = withApiRateLimit(async function (req) {
  * POST /api/address
  * Ajoute une nouvelle adresse
  * Rate limit: 10 créations par 5 minutes (protection anti-spam)
+ *
+ * Headers de sécurité appliqués automatiquement via next.config.mjs
  */
 export const POST = withApiRateLimit(
   async function (req) {
@@ -113,7 +175,11 @@ export const POST = withApiRateLimit(
       const user = await User.findOne({ email: req.user.email }).select('_id');
       if (!user) {
         return NextResponse.json(
-          { success: false, message: 'User not found' },
+          {
+            success: false,
+            message: 'User not found',
+            code: 'USER_NOT_FOUND',
+          },
           { status: 404 },
         );
       }
@@ -122,7 +188,12 @@ export const POST = withApiRateLimit(
       const addressCount = await Address.countDocuments({ user: user._id });
       if (addressCount >= 10) {
         return NextResponse.json(
-          { success: false, message: 'Maximum 10 addresses allowed' },
+          {
+            success: false,
+            message: 'Maximum 10 addresses allowed',
+            code: 'MAX_ADDRESSES_REACHED',
+            data: { currentCount: addressCount, maxAllowed: 10 },
+          },
           { status: 400 },
         );
       }
@@ -134,7 +205,11 @@ export const POST = withApiRateLimit(
         addressData = sanitizeAddress(rawData);
       } catch (error) {
         return NextResponse.json(
-          { success: false, message: 'Invalid request body' },
+          {
+            success: false,
+            message: 'Invalid request body',
+            code: 'INVALID_BODY',
+          },
           { status: 400 },
         );
       }
@@ -145,7 +220,11 @@ export const POST = withApiRateLimit(
           {
             success: false,
             message: 'Missing required fields',
-            errors: { general: 'Street, city, state and country are required' },
+            code: 'MISSING_FIELDS',
+            errors: {
+              general: 'Street, city, state and country are required',
+              fields: ['street', 'city', 'state', 'country'],
+            },
           },
           { status: 400 },
         );
@@ -158,6 +237,7 @@ export const POST = withApiRateLimit(
           {
             success: false,
             message: 'Validation failed',
+            code: 'VALIDATION_FAILED',
             errors: validation.errors,
           },
           { status: 400 },
@@ -178,13 +258,40 @@ export const POST = withApiRateLimit(
         user: user._id,
       });
 
+      // Log de sécurité pour audit
+      console.log('🔒 Security event - Address created:', {
+        userId: user._id,
+        addressId: address._id,
+        isDefault: address.isDefault,
+        timestamp: new Date().toISOString(),
+        ip:
+          req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+          'unknown',
+      });
+
       return NextResponse.json(
         {
           success: true,
-          data: { address },
           message: 'Address added successfully',
+          data: {
+            address: {
+              _id: address._id,
+              street: address.street,
+              city: address.city,
+              state: address.state,
+              zipCode: address.zipCode,
+              country: address.country,
+              isDefault: address.isDefault,
+              additionalInfo: address.additionalInfo,
+              createdAt: address.createdAt,
+            },
+            totalAddresses: addressCount + 1,
+          },
         },
-        { status: 201 },
+        {
+          status: 201,
+          // Headers de sécurité appliqués automatiquement
+        },
       );
     } catch (error) {
       console.error('POST address error:', error.message);
@@ -199,16 +306,19 @@ export const POST = withApiRateLimit(
       // Gestion simple des erreurs
       let status = 500;
       let message = 'Something went wrong';
+      let code = 'INTERNAL_ERROR';
 
       if (error.name === 'ValidationError') {
         status = 400;
         message = 'Invalid address data';
+        code = 'VALIDATION_ERROR';
       } else if (error.code === 11000) {
         status = 409;
         message = 'This address already exists';
+        code = 'DUPLICATE_ADDRESS';
       }
 
-      return NextResponse.json({ success: false, message }, { status });
+      return NextResponse.json({ success: false, message, code }, { status });
     }
   },
   {
