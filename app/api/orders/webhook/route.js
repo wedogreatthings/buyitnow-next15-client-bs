@@ -295,11 +295,9 @@ export const POST = withApiRateLimit(
           return order[0];
         });
 
-        console.log('Order created successfully for user:', user._id);
-        console.log('Created order details:', order); // Debugging --- IGNORE ---
-
         // Transaction réussie - Récupérer la commande complète
-        const order = await Order.findById(order._id)
+        const order = await Order.findOne({ user: user._id })
+          .sort({ createdAt: -1 })
           .select('_id orderNumber')
           .lean();
 
