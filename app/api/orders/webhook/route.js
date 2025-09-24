@@ -157,8 +157,6 @@ export const POST = withApiRateLimit(
       const session = await Order.startSession();
 
       try {
-        let createdOrder;
-
         await session.withTransaction(async () => {
           // Extraire les IDs de produits et quantités
           const productOrders = orderData.orderItems.map((item) => ({
@@ -298,14 +296,12 @@ export const POST = withApiRateLimit(
         });
 
         console.log('Order created successfully for user:', user._id);
+        console.log('Created order details:', order); // Debugging --- IGNORE ---
 
         // Transaction réussie - Récupérer la commande complète
         const order = await Order.findById(order._id)
-          .sort({ createdAt: -1 })
           .select('_id orderNumber')
           .lean();
-
-        console.log('Created order details:', order); // Debugging --- IGNORE ---
 
         // Log de sécurité pour audit
         console.log('🔒 Security event - Order created:', {
