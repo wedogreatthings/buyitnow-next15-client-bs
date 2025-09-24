@@ -40,7 +40,7 @@ export const POST = withApiRateLimit(
 
       // Récupérer l'utilisateur
       const user = await User.findOne({ email: req.user.email }).select(
-        '_id name email phone isActive verified',
+        '_id name email phone isActive',
       );
 
       if (!user) {

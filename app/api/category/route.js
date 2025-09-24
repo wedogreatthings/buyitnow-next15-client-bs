@@ -32,7 +32,7 @@ export const GET = withApiRateLimit(async function (req) {
 
     // Récupérer les catégories actives avec plus de détails
     const categories = await Category.find({ isActive: true })
-      .select('categoryName slug description createdAt updatedAt')
+      .select('categoryName')
       .sort({ categoryName: 1 })
       .lean();
 
