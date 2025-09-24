@@ -298,7 +298,7 @@ export const POST = withApiRateLimit(
         });
 
         // Transaction réussie - Récupérer la commande complète
-        const order = await Order.findById(createdOrder._id)
+        const order = await Order.findById(order._id)
           .sort({ createdAt: -1 })
           .select('_id orderNumber')
           .lean();
