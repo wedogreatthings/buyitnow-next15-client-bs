@@ -53,6 +53,7 @@ CartItemSkeleton.displayName = 'CartItemSkeleton';
  * @param {Object} props.initialData - Données initiales des adresses et paiements
  */
 const Shipping = ({ initialData }) => {
+  console.log('Rendering Shipping component with initialData:', initialData);
   // États locaux
   const [isLoading, setIsLoading] = useState(true);
   const [selectedAddress, setSelectedAddress] = useState(null);

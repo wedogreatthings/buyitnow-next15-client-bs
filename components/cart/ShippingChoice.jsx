@@ -54,6 +54,11 @@ CartItemSkeleton.displayName = 'CartItemSkeleton';
  * @param {Array} props.deliveryPrice - Prix de livraison
  */
 const ShippingChoice = ({ addresses, payments, deliveryPrice }) => {
+  console.log('Rendering ShippingChoice component with props:', {
+    addresses,
+    payments,
+    deliveryPrice,
+  }); // Log pour debug
   const [isLoading, setIsLoading] = useState(true);
   const initialized = useRef(false);
   const hasRedirected = useRef(false);
