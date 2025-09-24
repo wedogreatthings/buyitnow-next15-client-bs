@@ -43,7 +43,7 @@ export const POST = withApiRateLimit(
 
       // 3. Récupérer l'utilisateur avec validation améliorée
       const user = await User.findOne({ email: req.user.email })
-        .select('_id name email isActive verified')
+        .select('_id name email isActive')
         .lean();
 
       if (!user) {
@@ -68,12 +68,6 @@ export const POST = withApiRateLimit(
           },
           { status: 403 },
         );
-      }
-
-      // Vérifier si l'email est vérifié (optionnel mais recommandé pour les commandes)
-      if (!user.verified) {
-        console.log('Unverified user attempting to place order:', user.email);
-        // Vous pouvez choisir de bloquer ou juste logger
       }
 
       // 4. Parser et valider les données de commande
@@ -114,7 +108,7 @@ export const POST = withApiRateLimit(
         );
       }
 
-      if (!orderData.totalAmount || !orderData.shippingInfo) {
+      if (!orderData.totalAmount) {
         return NextResponse.json(
           {
             success: false,
@@ -125,14 +119,13 @@ export const POST = withApiRateLimit(
         );
       }
 
-      // Validation détaillée du paiement
+      // Validation du paiement
       const {
         amountPaid,
         typePayment,
         paymentAccountNumber,
         paymentAccountName,
       } = orderData.paymentInfo || {};
-
       if (
         !amountPaid ||
         !typePayment ||
@@ -140,24 +133,13 @@ export const POST = withApiRateLimit(
         !paymentAccountName
       ) {
         return NextResponse.json(
-          {
-            success: false,
-            message: 'Incomplete payment information',
-            code: 'INCOMPLETE_PAYMENT',
-            errors: {
-              amountPaid: !amountPaid ? 'Required' : null,
-              typePayment: !typePayment ? 'Required' : null,
-              paymentAccountNumber: !paymentAccountNumber ? 'Required' : null,
-              paymentAccountName: !paymentAccountName ? 'Required' : null,
-            },
-          },
+          { success: false, message: 'Incomplete payment information' },
           { status: 400 },
         );
       }
 
       // Validation du montant avec précision
       const totalAmount = parseFloat(orderData.totalAmount);
-      const paidAmount = parseFloat(amountPaid);
 
       if (isNaN(totalAmount) || totalAmount <= 0) {
         return NextResponse.json(
@@ -166,29 +148,6 @@ export const POST = withApiRateLimit(
             message: 'Invalid order amount',
             code: 'INVALID_AMOUNT',
             data: { providedAmount: orderData.totalAmount },
-          },
-          { status: 400 },
-        );
-      }
-
-      // Vérifier que le montant payé correspond au total
-      if (Math.abs(paidAmount - totalAmount) > 0.01) {
-        console.warn('Payment amount mismatch:', {
-          userId: user._id,
-          totalAmount,
-          paidAmount,
-          difference: paidAmount - totalAmount,
-        });
-
-        return NextResponse.json(
-          {
-            success: false,
-            message: 'Payment amount does not match order total',
-            code: 'PAYMENT_MISMATCH',
-            data: {
-              expected: totalAmount,
-              received: paidAmount,
-            },
           },
           { status: 400 },
         );
@@ -314,13 +273,9 @@ export const POST = withApiRateLimit(
 
           // Ajouter des métadonnées à la commande
           orderData.user = user._id;
-          orderData.orderStatus = 'Processing';
-          orderData.paymentStatus = 'Paid';
-          orderData.placedAt = new Date();
 
           // Créer la commande
           const order = await Order.create([orderData], { session });
-          createdOrder = order[0];
 
           // Supprimer les articles du panier
           const cartIds = productOrders
@@ -339,12 +294,13 @@ export const POST = withApiRateLimit(
           }
 
           // La transaction sera automatiquement commitée si tout réussit
-          return createdOrder;
+          return order[0];
         });
 
         // Transaction réussie - Récupérer la commande complète
         const order = await Order.findById(createdOrder._id)
-          .select('_id orderNumber totalAmount orderStatus createdAt')
+          .sort({ createdAt: -1 })
+          .select('_id orderNumber')
           .lean();
 
         // Log de sécurité pour audit
@@ -382,23 +338,11 @@ export const POST = withApiRateLimit(
         return NextResponse.json(
           {
             success: true,
+            id: order.orderNumber,
+            orderNumber: order.orderNumber,
             message: 'Order placed successfully',
-            data: {
-              orderId: order._id,
-              orderNumber: order.orderNumber,
-              orderStatus: order.orderStatus,
-              totalAmount: order.totalAmount,
-              createdAt: order.createdAt,
-              meta: {
-                cartCleared: true,
-                timestamp: new Date().toISOString(),
-              },
-            },
           },
-          {
-            status: 201,
-            // Pas de headers manuels - gérés par next.config.mjs
-          },
+          { status: 201 },
         );
       } catch (transactionError) {
         // Gérer les erreurs de transaction

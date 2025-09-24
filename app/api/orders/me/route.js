@@ -41,7 +41,7 @@ export const GET = withApiRateLimit(async function (req) {
 
     // Récupérer l'utilisateur avec validation améliorée
     const user = await User.findOne({ email: req.user.email })
-      .select('_id name email phone isActive verified')
+      .select('_id name email phone isActive')
       .lean();
 
     if (!user) {
@@ -74,7 +74,7 @@ export const GET = withApiRateLimit(async function (req) {
     // Récupérer et valider les paramètres de pagination
     const searchParams = req.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const resPerPage = 2; // 2 commandes par page
 
     // Validation des paramètres de pagination
     if (page < 1 || page > 1000) {
@@ -89,46 +89,8 @@ export const GET = withApiRateLimit(async function (req) {
       );
     }
 
-    // Limiter le nombre d'éléments par page pour éviter les abus
-    const resPerPage = Math.min(Math.max(limit, 1), 50); // Entre 1 et 50
-
-    // Récupérer les filtres optionnels
-    const status = searchParams.get('status');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-
-    // Construire le filtre de requête
-    let filter = { user: user._id };
-
-    // Ajouter le filtre de statut si présent
-    if (status) {
-      const validStatuses = ['Processing', 'Shipped', 'Delivered', 'Cancelled'];
-      if (validStatuses.includes(status)) {
-        filter.orderStatus = status;
-      }
-    }
-
-    // Ajouter le filtre de date si présent
-    if (startDate || endDate) {
-      filter.createdAt = {};
-      if (startDate) {
-        const start = new Date(startDate);
-        if (!isNaN(start.getTime())) {
-          filter.createdAt.$gte = start;
-        }
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        if (!isNaN(end.getTime())) {
-          // Ajouter 23:59:59 à la date de fin pour inclure toute la journée
-          end.setHours(23, 59, 59, 999);
-          filter.createdAt.$lte = end;
-        }
-      }
-    }
-
     // Compter le total de commandes avec les filtres
-    const ordersCount = await Order.countDocuments(filter);
+    const ordersCount = await Order.countDocuments({ user: user._id });
 
     // Si aucune commande trouvée
     if (ordersCount === 0) {
@@ -143,13 +105,6 @@ export const GET = withApiRateLimit(async function (req) {
             currentPage: page,
             count: 0,
             perPage: resPerPage,
-            filters: {
-              status: status || null,
-              dateRange: {
-                start: startDate || null,
-                end: endDate || null,
-              },
-            },
             meta: {
               hasOrders: false,
               timestamp: new Date().toISOString(),
@@ -162,106 +117,36 @@ export const GET = withApiRateLimit(async function (req) {
 
     // Utiliser APIFilters pour la pagination
     const apiFilters = new APIFilters(
-      Order.find(filter),
+      Order.find({ user: user._id }),
       searchParams,
     ).pagination(resPerPage);
 
-    // Récupérer les commandes avec pagination et données enrichies
+    // Récupérer les commandes avec pagination
     const orders = await apiFilters.query
       .select(
-        'orderNumber orderStatus paymentInfo paymentStatus totalAmount createdAt updatedAt orderItems deliveredAt',
+        'orderNumber orderStatus paymentInfo paymentStatus totalAmount createdAt orderItems',
       )
-      .populate({
-        path: 'shippingInfo',
-        select: 'street city state zipCode country additionalInfo',
-        model: 'Address',
-      })
+      .populate('shippingInfo', 'street city state zipCode country')
       .sort({ createdAt: -1 })
       .lean();
 
-    // Récupérer les prix de livraison actuels (pour référence)
-    const deliveryPrice = await DeliveryPrice.find({ isActive: true })
-      .select('zone price estimatedDays')
+    // Récupérer les prix de livraison (optionnel)
+    const deliveryPrice = await DeliveryPrice.find()
       .lean()
       .catch(() => []);
 
     // Calculer le nombre de pages
     const totalPages = Math.ceil(ordersCount / resPerPage);
 
-    // Calculer des statistiques sur les commandes
-    const statistics = {
-      totalOrders: ordersCount,
-      totalSpent: 0,
-      averageOrderValue: 0,
-      statusBreakdown: {},
-    };
-
-    // Calculer les statistiques si l'utilisateur a des commandes
-    if (ordersCount > 0) {
-      const allUserOrders = await Order.find({ user: user._id })
-        .select('totalAmount orderStatus')
-        .lean();
-
-      statistics.totalSpent = allUserOrders.reduce(
-        (sum, order) => sum + (order.totalAmount || 0),
-        0,
-      );
-      statistics.averageOrderValue = statistics.totalSpent / ordersCount;
-
-      // Compter les commandes par statut
-      allUserOrders.forEach((order) => {
-        statistics.statusBreakdown[order.orderStatus] =
-          (statistics.statusBreakdown[order.orderStatus] || 0) + 1;
-      });
-    }
-
-    // Formater les commandes avec données utilisateur et protection des données sensibles
-    const formattedOrders = orders.map((order) => {
-      // Masquer partiellement le numéro de compte de paiement
-      const maskedPaymentInfo = order.paymentInfo
-        ? {
-            ...order.paymentInfo,
-            paymentAccountNumber: order.paymentInfo.paymentAccountNumber
-              ? `****${order.paymentInfo.paymentAccountNumber.slice(-4)}`
-              : null,
-          }
-        : null;
-
-      return {
-        _id: order._id,
-        orderNumber: order.orderNumber,
-        orderStatus: order.orderStatus,
-        paymentInfo: maskedPaymentInfo,
-        paymentStatus: order.paymentStatus,
-        totalAmount: order.totalAmount,
-        itemCount: order.orderItems?.length || 0,
-        shippingInfo: order.shippingInfo,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        deliveredAt: order.deliveredAt,
-        // Résumé simplifié des articles
-        orderSummary: order.orderItems?.map((item) => ({
-          product: item.product,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-        user: {
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-        },
-        meta: {
-          daysAgo: Math.floor(
-            (Date.now() - new Date(order.createdAt).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ),
-          isRecent:
-            Date.now() - new Date(order.createdAt).getTime() <
-            7 * 24 * 60 * 60 * 1000, // < 7 jours
-        },
-      };
-    });
+    // Formater la réponse
+    const formattedOrders = orders.map((order) => ({
+      ...order,
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      },
+    }));
 
     // Log pour audit (sans données sensibles)
     console.log('Order history accessed:', {
@@ -269,11 +154,6 @@ export const GET = withApiRateLimit(async function (req) {
       userEmail: user.email,
       ordersRetrieved: orders.length,
       page,
-      filters: {
-        status: status || 'all',
-        dateRange:
-          startDate || endDate ? { start: startDate, end: endDate } : null,
-      },
       timestamp: new Date().toISOString(),
       ip:
         req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown',
@@ -299,39 +179,16 @@ export const GET = withApiRateLimit(async function (req) {
     return NextResponse.json(
       {
         success: true,
-        message:
-          ordersCount > 0 ? 'Orders retrieved successfully' : 'No orders found',
         data: {
           orders: formattedOrders,
           deliveryPrice,
-          pagination: {
-            totalPages,
-            currentPage: page,
-            totalCount: ordersCount,
-            perPage: resPerPage,
-            hasNextPage: page < totalPages,
-            hasPrevPage: page > 1,
-            nextPage: page < totalPages ? page + 1 : null,
-            prevPage: page > 1 ? page - 1 : null,
-          },
-          statistics,
-          filters: {
-            status: status || null,
-            dateRange: {
-              start: startDate || null,
-              end: endDate || null,
-            },
-          },
-          meta: {
-            timestamp: new Date().toISOString(),
-            requestId: crypto.randomUUID(), // Pour traçabilité
-          },
+          totalPages,
+          currentPage: page,
+          count: ordersCount,
+          perPage: resPerPage,
         },
       },
-      {
-        status: 200,
-        // Pas de headers manuels - gérés par next.config.mjs
-      },
+      { status: 200 },
     );
   } catch (error) {
     console.error('Orders fetch error:', error.message);
