@@ -252,7 +252,7 @@ const Filters = ({ categories, setLocalLoading }) => {
                     aria-pressed={currentCategory === category?._id}
                     disabled={isSubmitting}
                   >
-                    <span className="ml-2">{category?.categoryName}</span>
+                    <span className="ml-2">{category?.name}</span>
                   </button>
                 ))}
               </div>

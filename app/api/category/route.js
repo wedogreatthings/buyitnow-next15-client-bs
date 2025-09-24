@@ -62,8 +62,6 @@ export const GET = withApiRateLimit(async function (req) {
     const formattedCategories = categories.map((cat) => ({
       _id: cat._id,
       name: cat.categoryName,
-      slug: cat.slug,
-      description: cat.description || '',
       // Retirer les dates pour réduire la taille de la réponse
       // sauf si nécessaire pour le cache client
     }));
