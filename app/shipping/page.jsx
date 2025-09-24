@@ -107,8 +107,6 @@ const getAllAddresses = async (page = 'shipping') => {
     // 7. Parser la réponse JSON
     const responseBody = await res.json();
 
-    console.log('Shipping API response:', responseBody); // Log pour debug
-
     // 8. Vérifier la structure de la réponse
     if (!responseBody.success || !responseBody.data) {
       console.error('Invalid API response structure:', responseBody);
@@ -124,11 +122,6 @@ const getAllAddresses = async (page = 'shipping') => {
 
     // 9. Formater les données selon le contexte
     let responseData = { ...responseBody.data };
-
-    console.log(
-      'Formatted response data in Shipping Server component:',
-      responseData,
-    ); // Log pour debug
 
     // Si on est sur la page profil, on n'a pas besoin des données de paiement
     if (page === 'profile') {
@@ -232,8 +225,6 @@ const ShippingPage = async () => {
       });
       // Ne pas faire échouer le rendu en cas d'erreur, le composant client gérera cela
     }
-
-    console.log('Data fetched for ShippingPage:', addressesData); // Log pour debug
 
     return (
       <div

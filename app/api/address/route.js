@@ -56,29 +56,23 @@ export const GET = withApiRateLimit(async function (req) {
 
     // Récupérer les adresses de l'utilisateur
     const addresses = await Address.find({ user: user._id })
-      .select(
-        'street city state zipCode country isDefault additionalInfo createdAt updatedAt',
-      )
-      .sort({ isDefault: -1, createdAt: -1 }) // Adresse par défaut en premier
+      .select('street city state zipCode country isDefault additionalInfo')
+      .sort({ createdAt: -1 }) // Adresse par défaut en premier
       .lean();
 
     // Données additionnelles pour le contexte shipping
     let responseData = {
       addresses,
-      count: addresses.length,
-      hasDefaultAddress: addresses.some((addr) => addr.isDefault),
     };
 
     if (context === 'shipping') {
       try {
         // Récupérer les types de paiement et prix de livraison en parallèle
         const [paymentTypes, deliveryPrice] = await Promise.all([
-          PaymentType.find({ isActive: true })
-            .select('name code icon description')
+          PaymentType.find()
             .lean()
             .catch(() => []),
-          DeliveryPrice.find({ isActive: true })
-            .select('zone price estimatedDays')
+          DeliveryPrice.find()
             .lean()
             .catch(() => []),
         ]);
@@ -87,8 +81,6 @@ export const GET = withApiRateLimit(async function (req) {
           addresses,
           paymentTypes,
           deliveryPrice,
-          count: addresses.length,
-          hasDefaultAddress: addresses.some((addr) => addr.isDefault),
           meta: {
             context,
             timestamp: new Date().toISOString(),
