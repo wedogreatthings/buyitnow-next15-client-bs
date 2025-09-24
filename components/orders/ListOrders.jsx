@@ -47,7 +47,6 @@ const OrderItemSkeleton = () => (
  * Version améliorée avec tous les champs du modèle
  */
 const ListOrders = ({ orders }) => {
-  // console.log('Orders data:', orders); // Debugging
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -212,8 +211,6 @@ const ListOrders = ({ orders }) => {
       </div>
     );
   }
-
-  console.log('Orders Stats:', orderStats); // Debugging
 
   return (
     <div className="orders-container">
