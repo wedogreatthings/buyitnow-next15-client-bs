@@ -91,6 +91,8 @@ const Login = ({ csrfToken }) => {
         redirect: false, // Désactiver la redirection automatique pour gérer les erreurs
       });
 
+      console.log('SignIn response data:', data);
+
       if (data?.error) {
         // Classification et monitoring des erreurs de connexion
         let errorType = 'generic';

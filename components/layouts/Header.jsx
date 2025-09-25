@@ -32,7 +32,7 @@ const CART_LOAD_DELAY = 500;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 // ✅ NOUVEAU: Bouton panier avec gestion des utilisateurs non vérifiés
-const CartButton = memo(({ cartCount, isVerified = true, userEmail }) => {
+const CartButton = memo(({ cartCount, isVerified = true }) => {
   const handleCartClick = (e) => {
     if (!isVerified) {
       e.preventDefault();
@@ -222,8 +222,8 @@ const Header = () => {
 
   // ✅ NOUVEAU: Déterminer si l'utilisateur est vérifié
   const isUserVerified = useMemo(() => {
-    return user?.verified === true || user?.isVerified === true;
-  }, [user?.verified, user?.isVerified]);
+    return user?.isActive === true;
+  }, [user?.isActive]);
 
   // Cleanup des timeouts au démontage
   useEffect(() => {
