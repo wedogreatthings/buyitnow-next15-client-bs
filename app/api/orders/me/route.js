@@ -93,15 +93,17 @@ export const GET = withApiRateLimit(async function (req) {
     const ordersCount = await Order.countDocuments({ user: user._id });
     const ordersPaidCount = await Order.countDocuments({
       user: user._id,
-      paymentStatus: 'Paid',
+      paymentStatus: 'paid',
     });
     const ordersUnpaidCount = await Order.countDocuments({
       user: user._id,
-      paymentStatus: 'Unpaid',
+      paymentStatus: 'unpaid',
     });
 
     // Total de toutes les commandes d’un utilisateur (tous statuts confondus)
-    const totalAmountOrders = await Order.getTotalAmountByUser(user._id);
+    const totalAmountOrders = await Order.getTotalAmountByUser(
+      user._id.toString(),
+    );
 
     // Si aucune commande trouvée
     if (ordersCount === 0) {
