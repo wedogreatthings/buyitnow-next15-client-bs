@@ -93,7 +93,7 @@ const Login = ({ csrfToken }) => {
 
       console.log('SignIn response data:', data);
 
-      if (data?.error) {
+      if (data?.error !== null) {
         // Classification et monitoring des erreurs de connexion
         let errorType = 'generic';
         let isCritical = false;
@@ -137,6 +137,7 @@ const Login = ({ csrfToken }) => {
           emailDomain: email ? email.split('@')[1] : null,
         });
       } else if (data?.ok) {
+        console.log('Login successful, redirecting...');
         // Connexion réussie - Monitoring succès
         captureClientError(
           new Error('Connexion réussie'),
@@ -149,6 +150,8 @@ const Login = ({ csrfToken }) => {
             action: 'success',
           },
         );
+
+        console.log('Redirecting to:', data.url);
 
         toast.success('Connexion réussie!');
         router.push('/');
