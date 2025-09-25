@@ -158,6 +158,8 @@ export const AuthProvider = ({ children }) => {
 
       // Succès
       if (data.success) {
+        console.log('User before update:', user);
+        console.log('Updated user data:', data.data.updatedUser);
         setUser(data.data.updatedUser);
         toast.success('Profil mis à jour avec succès!');
         router.push('/me');
