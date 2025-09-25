@@ -210,14 +210,14 @@ export const POST = withApiRateLimit(
         {
           success: true,
           message: 'Signature generated successfully',
-          data: {
-            signature,
-            // timestamp: sanitizedParams.timestamp,
-            // cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-            // apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-            // folder: par.folder,
-            // eager: sanitizedParams.eager,
-          },
+          signature,
+          // data: {
+          //   // timestamp: sanitizedParams.timestamp,
+          //   // cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+          //   // apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+          //   // folder: par.folder,
+          //   // eager: sanitizedParams.eager,
+          // },
         },
         {
           status: 200,
