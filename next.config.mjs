@@ -172,10 +172,12 @@ const nextConfig = {
             value: 'strict-origin-when-cross-origin',
           },
           // Permissions Policy - Désactive les APIs non nécessaires pour un e-commerce
+
+          // APRÈS (autorise Cloudinary)
           {
             key: 'Permissions-Policy',
             value:
-              'camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
+              'camera=(self https://upload-widget.cloudinary.com), microphone=(self https://upload-widget.cloudinary.com), geolocation=(), interest-cohort=(), payment=(self), usb=(), magnetometer=(), gyroscope=(), accelerometer=()',
           },
           // CSP optimisé pour votre stack
           {
