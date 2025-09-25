@@ -9,7 +9,6 @@ import { toast } from 'react-toastify';
 import { parseCallbackUrl } from '@/helpers/helpers';
 import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { LoaderCircle } from 'lucide-react';
-import captureClientError from '@/monitoring/sentry';
 
 const Login = ({ csrfToken }) => {
   // États du formulaire
@@ -40,7 +39,7 @@ const Login = ({ csrfToken }) => {
       };
     } catch (error) {
       // Monitoring : Erreur lors de la détection de connexion
-      captureClientError(error, 'Login', 'connectionDetection', false);
+      console.error(error, 'Login', 'connectionDetection', false);
     }
   }, []);
 
@@ -51,7 +50,7 @@ const Login = ({ csrfToken }) => {
     // Vérifier d'abord si l'utilisateur est hors ligne
     if (isOffline) {
       const offlineError = new Error('Tentative de connexion hors ligne');
-      captureClientError(offlineError, 'Login', 'submit', false);
+      console.error(offlineError, 'Login', 'submit', false);
       toast.error(
         'Vous semblez être hors ligne. Veuillez vérifier votre connexion internet.',
       );
@@ -69,12 +68,7 @@ const Login = ({ csrfToken }) => {
 
       if (!validationResult.isValid) {
         // Monitoring : Erreurs de validation côté client
-        const validationError = new Error('Échec validation login côté client');
-        captureClientError(validationError, 'Login', 'validation', false, {
-          errorFields: Object.keys(validationResult.errors || {}),
-          emailProvided: !!email,
-          passwordProvided: !!password,
-        });
+        console.error('Échec validation login côté client');
 
         setErrors(validationResult.errors || {});
         toast.error('Veuillez corriger les erreurs dans le formulaire.');
@@ -90,8 +84,6 @@ const Login = ({ csrfToken }) => {
         csrfToken,
         redirect: false, // Désactiver la redirection automatique pour gérer les erreurs
       });
-
-      console.log('SignIn response data:', data);
 
       if (data?.error !== null) {
         // Classification et monitoring des erreurs de connexion
@@ -130,29 +122,13 @@ const Login = ({ csrfToken }) => {
 
         // Monitoring avec contexte riche
         const loginError = new Error(`Échec connexion: ${errorType}`);
-        captureClientError(loginError, 'Login', 'signIn', isCritical, {
+        console.error(loginError, 'Login', 'signIn', isCritical, {
           errorType,
           originalError: data.error,
           hasCallbackUrl: !!callBackUrl,
           emailDomain: email ? email.split('@')[1] : null,
         });
       } else if (data?.ok) {
-        console.log('Login successful, redirecting...');
-        // Connexion réussie - Monitoring succès
-        captureClientError(
-          new Error('Connexion réussie'),
-          'Login',
-          'signInSuccess',
-          false,
-          {
-            hasCallbackUrl: !!callBackUrl,
-            redirectUrl: callBackUrl ? parseCallbackUrl(callBackUrl) : '/',
-            action: 'success',
-          },
-        );
-
-        console.log('Redirecting to:', data.url);
-
         toast.success('Connexion réussie!');
         router.push('/');
       }
@@ -166,13 +142,13 @@ const Login = ({ csrfToken }) => {
         });
         setErrors(fieldErrors);
 
-        captureClientError(error, 'Login', 'yupValidation', false, {
+        console.error(error, 'Login', 'yupValidation', false, {
           validationErrors: Object.keys(fieldErrors),
         });
         toast.error('Veuillez corriger les erreurs dans le formulaire.');
       } else {
         // Erreurs techniques (réseau, parsing, etc.)
-        captureClientError(error, 'Login', 'technicalError', true, {
+        console.error(error, 'Login', 'technicalError', true, {
           errorName: error.name,
           errorMessage: error.message,
           stack: error.stack,

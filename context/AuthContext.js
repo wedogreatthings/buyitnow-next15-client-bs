@@ -3,7 +3,6 @@
 import { useRouter } from 'next/navigation';
 import { createContext, useState } from 'react';
 import { toast } from 'react-toastify';
-import captureClientError from '@/monitoring/sentry';
 
 const AuthContext = createContext();
 
@@ -61,7 +60,7 @@ export const AuthProvider = ({ children }) => {
 
         // Monitoring Sentry pour erreurs HTTP (non-critiques car attendues)
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
-        captureClientError(httpError, 'AuthContext', 'registerUser', false);
+        console.error(httpError, 'AuthContext', 'registerUser', false);
 
         setError(errorMessage);
         setLoading(false);
@@ -77,11 +76,11 @@ export const AuthProvider = ({ children }) => {
       // 6. Erreurs réseau/système - Monitoring critique
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'registerUser', false);
+        console.error(error, 'AuthContext', 'registerUser', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
         // Erreur réseau critique
-        captureClientError(error, 'AuthContext', 'registerUser', true);
+        console.error(error, 'AuthContext', 'registerUser', true);
       }
 
       console.error('Registration error:', error.message);
@@ -150,19 +149,12 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = res.status === 401; // Session expirée = critique
-        captureClientError(
-          httpError,
-          'AuthContext',
-          'updateProfile',
-          isCritical,
-        );
+        console.error(httpError, 'AuthContext', 'updateProfile', isCritical);
 
         setError(errorMessage);
         setLoading(false);
         return;
       }
-
-      console.log('Profile update response data:', data);
 
       // Succès
       if (data.success) {
@@ -174,10 +166,10 @@ export const AuthProvider = ({ children }) => {
       // Erreurs réseau/système
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'updateProfile', false);
+        console.error(error, 'AuthContext', 'updateProfile', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'updateProfile', true);
+        console.error(error, 'AuthContext', 'updateProfile', true);
       }
 
       console.error('Profile update error:', error.message);
@@ -198,12 +190,7 @@ export const AuthProvider = ({ children }) => {
       // Validation basique côté client (juste les essentiels)
       if (!currentPassword || !newPassword) {
         const validationError = new Error('Tous les champs sont obligatoires');
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updatePassword',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updatePassword', false);
         setError('Tous les champs sont obligatoires');
         setLoading(false);
         return;
@@ -213,12 +200,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           'Le nouveau mot de passe doit être différent',
         );
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updatePassword',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updatePassword', false);
         setError('Le nouveau mot de passe doit être différent');
         setLoading(false);
         return;
@@ -228,12 +210,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           'Minimum 8 caractères pour le nouveau mot de passe',
         );
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updatePassword',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updatePassword', false);
         setError('Minimum 8 caractères pour le nouveau mot de passe');
         setLoading(false);
         return;
@@ -243,12 +220,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           'Le nouveau mot de passe et la confirmation ne correspondent pas',
         );
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updatePassword',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updatePassword', false);
         setError(
           'Le nouveau mot de passe et la confirmation ne correspondent pas',
         );
@@ -301,12 +273,7 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP - Critique si session expirée
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = res.status === 401;
-        captureClientError(
-          httpError,
-          'AuthContext',
-          'updatePassword',
-          isCritical,
-        );
+        console.error(httpError, 'AuthContext', 'updatePassword', isCritical);
 
         setError(errorMessage);
         setLoading(false);
@@ -320,10 +287,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'updatePassword', false);
+        console.error(error, 'AuthContext', 'updatePassword', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'updatePassword', true);
+        console.error(error, 'AuthContext', 'updatePassword', true);
       }
       console.error('Password update error:', error.message);
     } finally {
@@ -341,12 +308,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           "Les données d'adresse sont manquantes",
         );
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'addNewAddress',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'addNewAddress', false);
         setError("Les données d'adresse sont manquantes");
         setLoading(false);
         return;
@@ -396,12 +358,7 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = res.status === 401;
-        captureClientError(
-          httpError,
-          'AuthContext',
-          'addNewAddress',
-          isCritical,
-        );
+        console.error(httpError, 'AuthContext', 'addNewAddress', isCritical);
 
         setError(errorMessage);
         setLoading(false);
@@ -415,10 +372,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'addNewAddress', false);
+        console.error(error, 'AuthContext', 'addNewAddress', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'addNewAddress', true);
+        console.error(error, 'AuthContext', 'addNewAddress', true);
       }
       console.error('Address creation error:', error.message);
     } finally {
@@ -434,12 +391,7 @@ export const AuthProvider = ({ children }) => {
       // Validation basique
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         const validationError = new Error("Identifiant d'adresse invalide");
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updateAddress',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updateAddress', false);
         setError("Identifiant d'adresse invalide");
         setLoading(false);
         return;
@@ -447,12 +399,7 @@ export const AuthProvider = ({ children }) => {
 
       if (!address || Object.keys(address).length === 0) {
         const validationError = new Error("Données d'adresse invalides");
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updateAddress',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'updateAddress', false);
         setError("Données d'adresse invalides");
         setLoading(false);
         return;
@@ -509,12 +456,7 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP - Critique pour 401/403/404
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = [401, 403, 404].includes(res.status);
-        captureClientError(
-          httpError,
-          'AuthContext',
-          'updateAddress',
-          isCritical,
-        );
+        console.error(httpError, 'AuthContext', 'updateAddress', isCritical);
 
         setError(errorMessage);
         setLoading(false);
@@ -529,10 +471,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'updateAddress', false);
+        console.error(error, 'AuthContext', 'updateAddress', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'updateAddress', true);
+        console.error(error, 'AuthContext', 'updateAddress', true);
       }
       console.error('Address update error:', error.message);
     } finally {
@@ -548,12 +490,7 @@ export const AuthProvider = ({ children }) => {
       // Validation basique
       if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
         const validationError = new Error("Identifiant d'adresse invalide");
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'deleteAddress',
-          false,
-        );
+        console.error(validationError, 'AuthContext', 'deleteAddress', false);
         setError("Identifiant d'adresse invalide");
         setLoading(false);
         return;
@@ -606,12 +543,7 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP - Critique pour 401/403/404
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = [401, 403, 404].includes(res.status);
-        captureClientError(
-          httpError,
-          'AuthContext',
-          'deleteAddress',
-          isCritical,
-        );
+        console.error(httpError, 'AuthContext', 'deleteAddress', isCritical);
 
         setError(errorMessage);
         setLoading(false);
@@ -625,10 +557,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'deleteAddress', false);
+        console.error(error, 'AuthContext', 'deleteAddress', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'deleteAddress', true);
+        console.error(error, 'AuthContext', 'deleteAddress', true);
       }
       console.error('Address deletion error:', error.message);
     } finally {
@@ -644,7 +576,7 @@ export const AuthProvider = ({ children }) => {
       // Validation basique
       if (!subject || !subject.trim()) {
         const validationError = new Error('Le sujet est obligatoire');
-        captureClientError(validationError, 'AuthContext', 'sendEmail', false);
+        console.error(validationError, 'AuthContext', 'sendEmail', false);
         setError('Le sujet est obligatoire');
         setLoading(false);
         return;
@@ -652,7 +584,7 @@ export const AuthProvider = ({ children }) => {
 
       if (!message || !message.trim()) {
         const validationError = new Error('Le message est obligatoire');
-        captureClientError(validationError, 'AuthContext', 'sendEmail', false);
+        console.error(validationError, 'AuthContext', 'sendEmail', false);
         setError('Le message est obligatoire');
         setLoading(false);
         return;
@@ -662,7 +594,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           'Le sujet est trop long (max 200 caractères)',
         );
-        captureClientError(validationError, 'AuthContext', 'sendEmail', false);
+        console.error(validationError, 'AuthContext', 'sendEmail', false);
         setError('Le sujet est trop long (max 200 caractères)');
         setLoading(false);
         return;
@@ -672,7 +604,7 @@ export const AuthProvider = ({ children }) => {
         const validationError = new Error(
           'Le message est trop long (max 5000 caractères)',
         );
-        captureClientError(validationError, 'AuthContext', 'sendEmail', false);
+        console.error(validationError, 'AuthContext', 'sendEmail', false);
         setError('Le message est trop long (max 5000 caractères)');
         setLoading(false);
         return;
@@ -722,7 +654,7 @@ export const AuthProvider = ({ children }) => {
         // Monitoring pour erreurs HTTP - Critique pour 401/503
         const httpError = new Error(`HTTP ${res.status}: ${errorMessage}`);
         const isCritical = [401, 503].includes(res.status);
-        captureClientError(httpError, 'AuthContext', 'sendEmail', isCritical);
+        console.error(httpError, 'AuthContext', 'sendEmail', isCritical);
 
         setError(errorMessage);
         setLoading(false);
@@ -736,10 +668,10 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       if (error.name === 'AbortError') {
         setError('La requête a pris trop de temps');
-        captureClientError(error, 'AuthContext', 'sendEmail', false);
+        console.error(error, 'AuthContext', 'sendEmail', false);
       } else {
         setError('Problème de connexion. Vérifiez votre connexion.');
-        captureClientError(error, 'AuthContext', 'sendEmail', true);
+        console.error(error, 'AuthContext', 'sendEmail', true);
       }
       console.error('Email send error:', error.message);
     } finally {

@@ -217,6 +217,9 @@ const Header = () => {
   const signOutTimeoutRef = useRef(null);
   const mobileMenuTimeoutRef = useRef(null);
 
+  console.log('Header render - user:', user);
+  console.log('Session data:', data);
+
   // Flag pour éviter les chargements multiples
   const isCartLoadingRef = useRef(false);
 
