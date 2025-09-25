@@ -421,7 +421,7 @@ orderSchema.statics.getTotalAmountByUser = async function (
   userId,
   onlyPaid = false,
 ) {
-  const matchStage = { user: mongoose.Types.ObjectId(userId) };
+  const matchStage = { user: new mongoose.Types.ObjectId(userId) };
   if (onlyPaid) {
     matchStage.paymentStatus = 'paid';
   }
