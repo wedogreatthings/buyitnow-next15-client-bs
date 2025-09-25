@@ -47,7 +47,6 @@ const OrderItemSkeleton = () => (
  * Version améliorée avec tous les champs du modèle
  */
 const ListOrders = ({ orders }) => {
-  console.log('Orders data received in ListOrders:', orders);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
@@ -123,35 +122,6 @@ const ListOrders = ({ orders }) => {
       return [];
     }
   }, [hasOrders, orders?.orders, filterStatus, sortOrder]);
-
-  // Dans le useMemo pour orderStats
-  const orderStats = useMemo(() => {
-    try {
-      if (!hasOrders)
-        return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
-
-      return orders.orders.reduce(
-        (stats, order) => {
-          stats.total++;
-          stats.totalAmount += order.totalAmount || 0;
-          if (order.paymentStatus === 'paid') stats.paid++;
-          if (order.paymentStatus === 'unpaid') stats.unpaid++;
-          if (order.orderStatus === 'Delivered') stats.delivered++;
-          return stats;
-        },
-        { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 },
-      );
-    } catch (error) {
-      // Monitoring : Erreur de calcul des statistiques
-      captureClientError(error, 'ListOrders', 'calculateStats', true, {
-        ordersCount: orders?.orders?.length || 0,
-        hasValidOrders: hasOrders,
-      });
-
-      // Fallback sur des stats vides
-      return { total: 0, paid: 0, unpaid: 0, delivered: 0, totalAmount: 0 };
-    }
-  }, [hasOrders, orders?.orders]);
 
   // Dans handlePageChange
   const handlePageChange = useCallback(
@@ -253,32 +223,24 @@ const ListOrders = ({ orders }) => {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <div className="bg-gray-50 p-3 rounded-md">
             <p className="text-sm text-gray-600">Total commandes</p>
-            <p className="text-xl font-bold text-gray-900">
-              {orderStats.total}
-            </p>
+            <p className="text-xl font-bold text-gray-900">{orders.count}</p>
           </div>
           <div className="bg-green-50 p-3 rounded-md">
             <p className="text-sm text-green-600">Payées</p>
             <p className="text-xl font-bold text-green-900">
-              {orderStats.paid}
+              {orders.paidCount}
             </p>
           </div>
           <div className="bg-red-50 p-3 rounded-md">
             <p className="text-sm text-red-600">Non payées</p>
             <p className="text-xl font-bold text-red-900">
-              {orderStats.unpaid}
-            </p>
-          </div>
-          <div className="bg-blue-50 p-3 rounded-md">
-            <p className="text-sm text-blue-600">Livrées</p>
-            <p className="text-xl font-bold text-blue-900">
-              {orderStats.delivered}
+              {orders.unpaidCount}
             </p>
           </div>
           <div className="bg-purple-50 p-3 rounded-md">
             <p className="text-sm text-purple-600">Montant total</p>
             <p className="text-xl font-bold text-purple-900">
-              ${orderStats.totalAmount.toFixed(2)}
+              ${orders.totalAmountOrders.totalAmount}
             </p>
           </div>
         </div>
