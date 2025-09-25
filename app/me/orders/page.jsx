@@ -178,6 +178,8 @@ const getAllOrders = async (searchParams) => {
       };
     }
 
+    console.log('Orders data fetched:', responseBody.data); // Log pour debug
+
     // 9. Masquer les informations sensibles de paiement
     const sanitizedOrders = (responseBody.data.orders || []).map((order) => ({
       ...order,
