@@ -210,6 +210,9 @@ const getAllOrders = async (searchParams) => {
         count: responseBody.data.count || 0,
         perPage: responseBody.data.perPage || 10,
         deliveryPrice: responseBody.data.deliveryPrice || [],
+        paidCount: responseBody.data.paidCount || 0,
+        unpaidCount: responseBody.data.unpaidCount || 0,
+        totalAmountOrders: responseBody.data.totalAmountOrders || 0,
       },
     };
   } catch (error) {
