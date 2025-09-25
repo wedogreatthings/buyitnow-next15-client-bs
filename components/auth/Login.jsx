@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { parseCallbackUrl } from '@/helpers/helpers';
 import { validateLogin } from '@/helpers/validation/schemas/auth';
 import { LoaderCircle } from 'lucide-react';
+import { captureException } from '@/monitoring/sentry';
 
 const Login = ({ csrfToken }) => {
   // États du formulaire
@@ -148,7 +149,7 @@ const Login = ({ csrfToken }) => {
         toast.error('Veuillez corriger les erreurs dans le formulaire.');
       } else {
         // Erreurs techniques (réseau, parsing, etc.)
-        console.error(error, 'Login', 'technicalError', true, {
+        captureException(error, 'Login', 'technicalError', true, {
           errorName: error.name,
           errorMessage: error.message,
           stack: error.stack,
