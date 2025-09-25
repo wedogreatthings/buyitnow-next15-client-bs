@@ -91,6 +91,17 @@ export const GET = withApiRateLimit(async function (req) {
 
     // Compter le total de commandes avec les filtres
     const ordersCount = await Order.countDocuments({ user: user._id });
+    const ordersPaidCount = await Order.countDocuments({
+      user: user._id,
+      paymentStatus: 'Paid',
+    });
+    const ordersUnpaidCount = await Order.countDocuments({
+      user: user._id,
+      paymentStatus: 'Unpaid',
+    });
+
+    // Total de toutes les commandes d’un utilisateur (tous statuts confondus)
+    const totalAmountOrders = await Order.getTotalAmountByUser(user._id);
 
     // Si aucune commande trouvée
     if (ordersCount === 0) {
@@ -185,6 +196,9 @@ export const GET = withApiRateLimit(async function (req) {
           totalPages,
           currentPage: page,
           count: ordersCount,
+          paidCount: ordersPaidCount,
+          unpaidCount: ordersUnpaidCount,
+          totalAmountOrders,
           perPage: resPerPage,
         },
       },

@@ -416,6 +416,32 @@ orderSchema.statics.getStats = async function () {
   }
 };
 
+// Méthode statique pour calculer le montant total des commandes d'un utilisateur
+orderSchema.statics.getTotalAmountByUser = async function (
+  userId,
+  onlyPaid = false,
+) {
+  const matchStage = { user: mongoose.Types.ObjectId(userId) };
+  if (onlyPaid) {
+    matchStage.paymentStatus = 'paid';
+  }
+
+  const result = await this.aggregate([
+    { $match: matchStage },
+    {
+      $group: {
+        _id: null,
+        totalAmount: { $sum: '$totalAmount' },
+        orderCount: { $sum: 1 },
+      },
+    },
+  ]);
+
+  return result.length > 0
+    ? { totalAmount: result[0].totalAmount, orderCount: result[0].orderCount }
+    : { totalAmount: 0, orderCount: 0 };
+};
+
 // Protection contre les recherches trop intensives
 orderSchema.pre('find', function () {
   // Limiter le nombre de résultats si aucune limite n'est spécifiée
