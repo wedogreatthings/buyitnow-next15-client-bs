@@ -97,13 +97,7 @@ export const AuthProvider = ({ children }) => {
 
       // Validation basique côté client
       if (!name || name.trim() === '') {
-        const validationError = new Error('Le nom est obligatoire');
-        captureClientError(
-          validationError,
-          'AuthContext',
-          'updateProfile',
-          false,
-        );
+        console.log('Le nom est obligatoire');
         setError('Le nom est obligatoire');
         setLoading(false);
         return;
@@ -167,6 +161,8 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
+
+      console.log('Profile update response data:', data);
 
       // Succès
       if (data.success) {
