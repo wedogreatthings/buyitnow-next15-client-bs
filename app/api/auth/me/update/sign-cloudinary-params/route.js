@@ -115,53 +115,53 @@ export const POST = withApiRateLimit(
       const { paramsToSign } = body;
 
       // 7. Valider et sanitizer les paramètres
-      const allowedParams = [
-        'timestamp',
-        'source',
-        'eager',
-        'public_id',
-        'upload_preset',
-        // Ajouter d'autres paramètres autorisés si nécessaire
-      ];
+      // const allowedParams = [
+      //   'timestamp',
+      //   'source',
+      //   'eager',
+      //   'public_id',
+      //   'upload_preset',
+      //   // Ajouter d'autres paramètres autorisés si nécessaire
+      // ];
 
       // Filtrer les paramètres non autorisés
-      const sanitizedParams = {};
-      for (const [key, value] of Object.entries(paramsToSign)) {
-        if (allowedParams.includes(key)) {
-          sanitizedParams[key] = value;
-        }
-      }
+      // const sanitizedParams = {};
+      // for (const [key, value] of Object.entries(paramsToSign)) {
+      //   if (allowedParams.includes(key)) {
+      //     sanitizedParams[key] = value;
+      //   }
+      // }
 
       // 8. Forcer les paramètres de sécurité
       // Timestamp obligatoire pour la signature
-      if (!sanitizedParams.timestamp) {
-        sanitizedParams.timestamp = Math.round(new Date().getTime() / 1000);
-      }
+      // if (!sanitizedParams.timestamp) {
+      //   sanitizedParams.timestamp = Math.round(new Date().getTime() / 1000);
+      // }
 
       // Configuration du dossier et restrictions
-      sanitizedParams.folder = 'buyitnow/avatars';
-      sanitizedParams.allowed_formats = 'jpg,jpeg,png,webp';
-      sanitizedParams.max_file_size = 2000000; // 2MB
-      sanitizedParams.resource_type = 'image';
-      sanitizedParams.type = 'authenticated'; // Upload authentifié
+      paramsToSign.folder = 'buyitnow/avatars';
+      // sanitizedParams.allowed_formats = 'jpg,jpeg,png,webp';
+      // sanitizedParams.max_file_size = 2000000; // 2MB
+      // sanitizedParams.resource_type = 'image';
+      // sanitizedParams.type = 'authenticated'; // Upload authentifié
 
       // Ajouter un public_id unique basé sur l'utilisateur
-      if (!sanitizedParams.public_id) {
-        const timestamp = Date.now();
-        sanitizedParams.public_id = `buyitnow/avatars/${user._id}_${timestamp}`;
-      }
+      // if (!sanitizedParams.public_id) {
+      //   const timestamp = Date.now();
+      //   sanitizedParams.public_id = `buyitnow/avatars/${user._id}_${timestamp}`;
+      // }
 
       // Options de transformation pour optimiser les avatars
-      sanitizedParams.eager = 'w_200,h_200,c_thumb,g_face,f_auto,q_auto';
-      sanitizedParams.eager_async = true;
+      // sanitizedParams.eager = 'w_200,h_200,c_thumb,g_face,f_auto,q_auto';
+      // sanitizedParams.eager_async = true;
 
-      console.log('Sanitized params for signing:', sanitizedParams);
+      console.log('Sanitized params for signing:', paramsToSign);
 
       // 9. Générer la signature
       let signature;
       try {
         signature = cloudinary.utils.api_sign_request(
-          sanitizedParams,
+          paramsToSign,
           process.env.CLOUDINARY_API_SECRET,
         );
       } catch (error) {
@@ -175,7 +175,7 @@ export const POST = withApiRateLimit(
           },
           extra: {
             userId: user._id,
-            params: Object.keys(sanitizedParams),
+            // params: Object.keys(sanitizedParams),
           },
         });
 
@@ -194,14 +194,14 @@ export const POST = withApiRateLimit(
       if (process.env.NODE_ENV === 'production') {
         console.info('Cloudinary signature generated', {
           userId: user._id.toString().substring(0, 8) + '...',
-          folder: sanitizedParams.folder,
+          folder: paramsToSign.folder,
           timestamp: new Date().toISOString(),
         });
       } else {
         console.log('Cloudinary params signed:', {
           userId: user._id,
-          folder: sanitizedParams.folder,
-          publicId: sanitizedParams.public_id,
+          folder: paramsToSign.folder,
+          publicId: paramsToSign.public_id,
         });
       }
 
@@ -212,11 +212,11 @@ export const POST = withApiRateLimit(
           message: 'Signature generated successfully',
           data: {
             signature,
-            timestamp: sanitizedParams.timestamp,
-            cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-            apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-            folder: sanitizedParams.folder,
-            eager: sanitizedParams.eager,
+            // timestamp: sanitizedParams.timestamp,
+            // cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+            // apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+            // folder: par.folder,
+            // eager: sanitizedParams.eager,
           },
         },
         {
