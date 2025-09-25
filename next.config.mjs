@@ -183,21 +183,22 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: `
-    default-src 'self' blob: data:;
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https:;
-    style-src 'self' 'unsafe-inline' https:;
-    img-src 'self' blob: data: https:;
-    font-src 'self' data: https:;
-    connect-src 'self' https:;
-    media-src 'self' blob: https:;
-    object-src 'none';
-    frame-src 'self' https:;
-    frame-ancestors 'self';
-    base-uri 'self';
-    form-action 'self' https:;
-    manifest-src 'self';
-    worker-src 'self' blob:;
-  `
+            default-src 'self';
+            script-src 'self' 'unsafe-eval' 'unsafe-inline' https://upload-widget.cloudinary.com;
+            style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+            img-src 'self' blob: data: https://res.cloudinary.com https://buyitnow-next15-client-bs.vercel.app;
+            font-src 'self' data: https://cdnjs.cloudflare.com;
+            connect-src 'self' https://res.cloudinary.com https://api.cloudinary.com https://upload-widget.cloudinary.com ${process.env.NODE_ENV === 'production' ? 'https://*.sentry.io https://sentry.io' : ''};
+            media-src 'self' https://res.cloudinary.com;
+            object-src 'none';
+            frame-src 'self' https://upload-widget.cloudinary.com;
+            frame-ancestors 'self';
+            base-uri 'self';
+            form-action 'self';
+            manifest-src 'self';
+            worker-src 'self';
+            upgrade-insecure-requests;
+          `
               .replace(/\s{2,}/g, ' ')
               .trim(),
           },
