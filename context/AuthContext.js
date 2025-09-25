@@ -14,10 +14,12 @@ export const AuthProvider = ({ children }) => {
   const [updated, setUpdated] = useState(false);
 
   const router = useRouter();
-  const { update: updateSession } = useSession(); // ✅ AJOUT
+  // ✅ MODIFICATION: Gestion sécurisée de useSession
+  const session = useSession();
+  const updateSession = session?.update; // Éviter la déstructuration directe
 
   // ✅ NOUVELLE fonction pour synchroniser l'utilisateur avec session complète
-  const syncUserWithSession = (updatedUserData) => {
+  const syncUserWithSession = async (updatedUserData) => {
     // Récupérer les données actuelles de l'utilisateur
     const currentUser = user;
 
@@ -40,10 +42,20 @@ export const AuthProvider = ({ children }) => {
     // Mettre à jour l'état local
     setUser(syncedUser);
 
-    // Mettre à jour la session NextAuth avec les nouvelles données
-    updateSession({
-      user: syncedUser,
-    });
+    // ✅ MODIFICATION: Vérifier que updateSession existe avant de l'utiliser
+    if (updateSession && typeof updateSession === 'function') {
+      try {
+        await updateSession({
+          user: syncedUser,
+        });
+        console.log('Session updated successfully');
+      } catch (error) {
+        console.warn('Failed to update session:', error);
+        // Ne pas bloquer le processus si la mise à jour de session échoue
+      }
+    } else {
+      console.warn('UpdateSession not available, skipping session sync');
+    }
 
     return syncedUser;
   };
@@ -192,8 +204,13 @@ export const AuthProvider = ({ children }) => {
 
       // Succès
       if (data.success) {
+        console.log('User before update:', user);
+        console.log('Updated user data:', data.data.updatedUser);
+
         // ✅ MODIFICATION: Utiliser la nouvelle fonction de synchronisation
-        syncUserWithSession(data.data.updatedUser);
+        const syncedUser = await syncUserWithSession(data.data.updatedUser);
+
+        console.log('User after sync:', syncedUser);
 
         toast.success('Profil mis à jour avec succès!');
 
