@@ -102,6 +102,7 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
 
   // Gestionnaire de téléchargement d'avatar réussi
   const handleUploadSuccess = useCallback((result) => {
+    console.log('Upload success result:', result);
     if (result?.info?.public_id && result?.info?.secure_url) {
       // Vérifier que l'ID est bien dans le dossier attendu
       const publicId = result.info.public_id;
