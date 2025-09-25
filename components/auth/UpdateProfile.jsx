@@ -211,7 +211,7 @@ const UpdateProfile = ({ userId, initialEmail, referer }) => {
     maxFileSize: 2000000, // 2MB
     resourceType: 'image',
     clientAllowedFormats: ['jpg', 'jpeg', 'png', 'webp'],
-    sources: ['local', 'camera'],
+    sources: ['local'],
     multiple: false, // S'assurer que c'est bien à false
     showUploadMoreButton: false,
     showPoweredBy: false, // Optionnel: cacher le "powered by Cloudinary"
