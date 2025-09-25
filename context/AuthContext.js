@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { createContext, useState } from 'react';
 import { toast } from 'react-toastify';
+import { useSession } from 'next-auth/react'; // ✅ AJOUT
 
 const AuthContext = createContext();
 
@@ -13,6 +14,39 @@ export const AuthProvider = ({ children }) => {
   const [updated, setUpdated] = useState(false);
 
   const router = useRouter();
+  const { update: updateSession } = useSession(); // ✅ AJOUT
+
+  // ✅ NOUVELLE fonction pour synchroniser l'utilisateur avec session complète
+  const syncUserWithSession = (updatedUserData) => {
+    // Récupérer les données actuelles de l'utilisateur
+    const currentUser = user;
+
+    // Créer un utilisateur complet en gardant toutes les propriétés existantes
+    // et en ne mettant à jour que les champs modifiables
+    const syncedUser = {
+      ...currentUser, // Garder toutes les propriétés existantes
+      name: updatedUserData.name || currentUser?.name,
+      phone: updatedUserData.phone || currentUser?.phone,
+      avatar: updatedUserData.avatar || currentUser?.avatar,
+      // Garder les autres propriétés inchangées
+    };
+
+    console.log('Syncing user with session:', {
+      before: currentUser,
+      received: updatedUserData,
+      synced: syncedUser,
+    });
+
+    // Mettre à jour l'état local
+    setUser(syncedUser);
+
+    // Mettre à jour la session NextAuth avec les nouvelles données
+    updateSession({
+      user: syncedUser,
+    });
+
+    return syncedUser;
+  };
 
   const registerUser = async ({ name, phone, email, password }) => {
     try {
@@ -158,11 +192,15 @@ export const AuthProvider = ({ children }) => {
 
       // Succès
       if (data.success) {
-        console.log('User before update:', user);
-        console.log('Updated user data:', data.data.updatedUser);
-        setUser(data.data.updatedUser);
+        // ✅ MODIFICATION: Utiliser la nouvelle fonction de synchronisation
+        syncUserWithSession(data.data.updatedUser);
+
         toast.success('Profil mis à jour avec succès!');
-        router.push('/me');
+
+        // ✅ AJOUT: Attendre un peu que la session soit mise à jour avant de rediriger
+        setTimeout(() => {
+          router.push('/me');
+        }, 500);
       }
     } catch (error) {
       // Erreurs réseau/système
@@ -179,6 +217,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
+  // ... resto des méthodes inchangées
 
   const updatePassword = async ({
     currentPassword,
@@ -711,6 +751,7 @@ export const AuthProvider = ({ children }) => {
         sendEmail,
         clearUser,
         clearErrors,
+        syncUserWithSession, // ✅ AJOUT: Exposer la fonction si besoin ailleurs
       }}
     >
       {children}
