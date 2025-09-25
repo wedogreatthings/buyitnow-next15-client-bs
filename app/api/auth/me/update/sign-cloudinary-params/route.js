@@ -22,11 +22,8 @@ cloudinary.config({
 export const POST = withApiRateLimit(
   async function (req) {
     try {
-      console.log('Starting Cloudinary params signing process');
       // 1. Vérifier l'authentification
       await isAuthenticatedUser(req, NextResponse);
-
-      console.log('User authenticated:', req.user.email);
 
       // 2. Vérifier les variables d'environnement
       if (
@@ -48,12 +45,8 @@ export const POST = withApiRateLimit(
         );
       }
 
-      console.log('Cloudinary configuration verified');
-
       // 3. Connexion DB pour vérifier l'utilisateur
       await dbConnect();
-
-      console.log('Database connected');
 
       // 4. Vérifier que l'utilisateur existe et est actif
       const user = await User.findOne({ email: req.user.email });
@@ -66,8 +59,6 @@ export const POST = withApiRateLimit(
           { status: 404 },
         );
       }
-
-      console.log('User found:', user.email);
 
       if (user.isActive === false) {
         return NextResponse.json(
@@ -93,8 +84,6 @@ export const POST = withApiRateLimit(
         );
       }
 
-      console.log('Request body parsed:', body);
-
       // 6. Valider la présence de paramsToSign
       if (
         !body ||
@@ -114,48 +103,8 @@ export const POST = withApiRateLimit(
 
       const { paramsToSign } = body;
 
-      // 7. Valider et sanitizer les paramètres
-      // const allowedParams = [
-      //   'timestamp',
-      //   'source',
-      //   'eager',
-      //   'public_id',
-      //   'upload_preset',
-      //   // Ajouter d'autres paramètres autorisés si nécessaire
-      // ];
-
-      // Filtrer les paramètres non autorisés
-      // const sanitizedParams = {};
-      // for (const [key, value] of Object.entries(paramsToSign)) {
-      //   if (allowedParams.includes(key)) {
-      //     sanitizedParams[key] = value;
-      //   }
-      // }
-
-      // 8. Forcer les paramètres de sécurité
-      // Timestamp obligatoire pour la signature
-      // if (!sanitizedParams.timestamp) {
-      //   sanitizedParams.timestamp = Math.round(new Date().getTime() / 1000);
-      // }
-
       // Configuration du dossier et restrictions
       paramsToSign.folder = 'buyitnow/avatars';
-      // sanitizedParams.allowed_formats = 'jpg,jpeg,png,webp';
-      // sanitizedParams.max_file_size = 2000000; // 2MB
-      // sanitizedParams.resource_type = 'image';
-      // sanitizedParams.type = 'authenticated'; // Upload authentifié
-
-      // Ajouter un public_id unique basé sur l'utilisateur
-      // if (!sanitizedParams.public_id) {
-      //   const timestamp = Date.now();
-      //   sanitizedParams.public_id = `buyitnow/avatars/${user._id}_${timestamp}`;
-      // }
-
-      // Options de transformation pour optimiser les avatars
-      // sanitizedParams.eager = 'w_200,h_200,c_thumb,g_face,f_auto,q_auto';
-      // sanitizedParams.eager_async = true;
-
-      console.log('Sanitized params for signing:', paramsToSign);
 
       // 9. Générer la signature
       let signature;
@@ -175,7 +124,6 @@ export const POST = withApiRateLimit(
           },
           extra: {
             userId: user._id,
-            // params: Object.keys(sanitizedParams),
           },
         });
 
@@ -211,13 +159,6 @@ export const POST = withApiRateLimit(
           success: true,
           message: 'Signature generated successfully',
           signature,
-          data: {
-            // timestamp: sanitizedParams.timestamp,
-            cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-            apiKey: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-            folder: paramsToSign.folder,
-            // eager: sanitizedParams.eager,
-          },
         },
         {
           status: 200,
