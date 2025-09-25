@@ -22,8 +22,11 @@ cloudinary.config({
 export const POST = withApiRateLimit(
   async function (req) {
     try {
+      console.log('Starting Cloudinary params signing process');
       // 1. Vérifier l'authentification
       await isAuthenticatedUser(req, NextResponse);
+
+      console.log('User authenticated:', req.user.email);
 
       // 2. Vérifier les variables d'environnement
       if (
@@ -45,8 +48,12 @@ export const POST = withApiRateLimit(
         );
       }
 
+      console.log('Cloudinary configuration verified');
+
       // 3. Connexion DB pour vérifier l'utilisateur
       await dbConnect();
+
+      console.log('Database connected');
 
       // 4. Vérifier que l'utilisateur existe et est actif
       const user = await User.findOne({ email: req.user.email });
@@ -59,6 +66,8 @@ export const POST = withApiRateLimit(
           { status: 404 },
         );
       }
+
+      console.log('User found:', user.email);
 
       if (user.isActive === false) {
         return NextResponse.json(
@@ -84,6 +93,8 @@ export const POST = withApiRateLimit(
         );
       }
 
+      console.log('Request body parsed:', body);
+
       // 6. Valider la présence de paramsToSign
       if (
         !body ||
@@ -98,6 +109,8 @@ export const POST = withApiRateLimit(
           { status: 400 },
         );
       }
+
+      console.log('Params to sign received:', body.paramsToSign);
 
       const { paramsToSign } = body;
 
@@ -142,6 +155,8 @@ export const POST = withApiRateLimit(
       sanitizedParams.eager = 'w_200,h_200,c_thumb,g_face,f_auto,q_auto';
       sanitizedParams.eager_async = true;
 
+      console.log('Sanitized params for signing:', sanitizedParams);
+
       // 9. Générer la signature
       let signature;
       try {
@@ -173,6 +188,8 @@ export const POST = withApiRateLimit(
         );
       }
 
+      console.log('Signature generated successfully');
+
       // 10. Logger l'activité (sans données sensibles)
       if (process.env.NODE_ENV === 'production') {
         console.info('Cloudinary signature generated', {
@@ -186,21 +203,6 @@ export const POST = withApiRateLimit(
           folder: sanitizedParams.folder,
           publicId: sanitizedParams.public_id,
         });
-      }
-
-      // 11. Optionnel : Mettre à jour la dernière activité de l'utilisateur
-      try {
-        await User.findByIdAndUpdate(
-          user._id,
-          {
-            lastActivity: new Date(),
-            $inc: { 'stats.avatarUploads': 1 }, // Si vous trackez les stats
-          },
-          { new: false }, // Pas besoin du document mis à jour
-        );
-      } catch (updateError) {
-        // Ne pas bloquer la requête si la mise à jour échoue
-        console.error('Failed to update user activity:', updateError);
       }
 
       // 12. Retourner la signature avec les paramètres nécessaires
